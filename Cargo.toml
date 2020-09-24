@@ -1,0 +1,10 @@
+[package]
+name = "twitter-bot"
+version = "0.1.0"
+authors = ["Mike Kaliman <kaliman.mike@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+egg-mode = "0.15.0"
+tokio = "0.2.22"
