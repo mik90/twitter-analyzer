@@ -8,3 +8,5 @@ edition = "2018"
 [dependencies]
 egg-mode = "0.15.0"
 tokio = "0.2.22"
+serde_json = "1.0.57"
+serde = "1.0.116"

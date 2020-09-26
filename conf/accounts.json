@@ -1,4 +1,28 @@
 {
-  "title": "accounts.json"
-
+  "categories": [
+    "politicians",
+    "news"
+  ],
+  "accounts": [
+    {
+      "handle": "realDonaldTrump",
+      "category": "politician"
+    },
+    {
+      "handle": "billpeduto",
+      "category": "politician"
+    },
+    {
+      "handle": "BBCWorld",
+      "category": "news"
+    },
+    {
+      "handle": "washingtonpost",
+      "category": "news"
+    },
+    {
+      "handle": "nytimes",
+      "category": "news"
+    }
+  ]
 }
