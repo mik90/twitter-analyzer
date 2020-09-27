@@ -1,12 +1,13 @@
 {
   "categories": [
     "politicians",
-    "news"
+    "news",
+    "test"
   ],
   "accounts": [
     {
-      "handle": "@realDonaldTrump",
-      "category": "politician"
+      "handle": "@twitter",
+      "category": "test"
     },
     {
       "handle": "@billpeduto",
@@ -14,6 +15,10 @@
     },
     {
       "handle": "@TomWolfPA",
+      "category": "politician"
+    },
+    {
+      "handle": "@realDonaldTrump",
       "category": "politician"
     },
     {

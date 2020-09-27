@@ -13,6 +13,7 @@
  *      - Account location
  * - Serialize summation to disk in json
  */
+
 use std::collections::BTreeMap;
 
 fn count_word_occurance(search_result: &egg_mode::search::SearchResult) -> BTreeMap<String, u32> {
@@ -39,7 +40,7 @@ fn count_word_occurance(search_result: &egg_mode::search::SearchResult) -> BTree
 }
 const N_MOST_COMMON_WORDS: usize = 3;
 
-pub fn get_most_common_words(search_result: &egg_mode::search::SearchResult) -> Vec<String> {
+pub(crate) fn get_most_common_words(search_result: &egg_mode::search::SearchResult) -> Vec<String> {
     let map_word_to_count = count_word_occurance(search_result);
     map_word_to_count
         .keys()
@@ -50,7 +51,7 @@ pub fn get_most_common_words(search_result: &egg_mode::search::SearchResult) -> 
 
 #[tokio::test]
 async fn test_most_common_words() {
-    let token = get_token().unwrap();
+    let token = crate::auth::get_token().unwrap();
     let search = egg_mode::search::search("twitter")
         .result_type(egg_mode::search::ResultType::Recent)
         .count(1)
@@ -58,5 +59,5 @@ async fn test_most_common_words() {
         .await
         .unwrap();
     let words = get_most_common_words(&search);
-    println!("Test: {}", words.flatten())
+    assert_eq!(words.is_empty(), false);
 }
