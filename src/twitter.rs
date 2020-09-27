@@ -4,7 +4,8 @@ pub struct TwitterAccount {
   category: String,
 }
 use crate::patterns;
-fn print_tweets(search_result: &egg_mode::search::SearchResult) {
+// Not used, but can be useful
+fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
   for tweet in &search_result.statuses {
     println!(
       "(@{}) {}",

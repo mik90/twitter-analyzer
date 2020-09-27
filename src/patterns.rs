@@ -51,7 +51,7 @@ pub(crate) fn get_most_common_words(search_result: &egg_mode::search::SearchResu
 
 #[tokio::test]
 async fn test_most_common_words() {
-    let token = crate::auth::get_token().unwrap();
+    let token = crate::auth::get_token(std::path::Path::new("auth/bearer.token")).unwrap();
     let search = egg_mode::search::search("twitter")
         .result_type(egg_mode::search::ResultType::Recent)
         .count(1)
