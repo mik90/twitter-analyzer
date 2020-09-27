@@ -5,23 +5,27 @@
   ],
   "accounts": [
     {
-      "handle": "realDonaldTrump",
+      "handle": "@realDonaldTrump",
       "category": "politician"
     },
     {
-      "handle": "billpeduto",
+      "handle": "@billpeduto",
       "category": "politician"
     },
     {
-      "handle": "BBCWorld",
+      "handle": "@TomWolfPA",
+      "category": "politician"
+    },
+    {
+      "handle": "@BBCWorld",
       "category": "news"
     },
     {
-      "handle": "washingtonpost",
+      "handle": "@washingtonpost",
       "category": "news"
     },
     {
-      "handle": "nytimes",
+      "handle": "@nytimes",
       "category": "news"
     }
   ]
