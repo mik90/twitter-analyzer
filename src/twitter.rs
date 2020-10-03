@@ -15,21 +15,40 @@ fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
   }
 }
 
+const N_TWEETS_PER_PAGE: u32 = 20;
+const N_SEARCHES_TO_RUN: u32 = 5;
+
 /// account_handle includes the "@"
 pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
-  let search_result = egg_mode::search::search(account_handle)
-    .result_type(egg_mode::search::ResultType::Recent)
-    .count(10)
-    .call(&token)
-    .await
-    .unwrap();
-  let words = patterns::get_most_common_words(&search_result);
-  println!("Most common words: {:?}", words);
+  let mut results: Vec<egg_mode::search::SearchResult> = Vec::new();
+  for _ in 0..N_SEARCHES_TO_RUN {
+    let search_result = egg_mode::search::search(account_handle.clone())
+      .result_type(egg_mode::search::ResultType::Recent)
+      .count(N_TWEETS_PER_PAGE)
+      .call(&token)
+      .await
+      .unwrap()
+      .response;
+    results.push(search_result);
+  }
+
+  let words = patterns::get_most_common_words(&results);
+  println!("------------------------------------");
+  println!("Most common words for {}:", account_handle);
+  for word in &words {
+    println!("{} was seen {} times", word.0, word.1);
+  }
+  println!("------------------------------------");
 }
 
 pub(crate) async fn analyze_accounts_from_config(token: egg_mode::Token, config: Config) {
-  for account in config.accounts.into_iter() {
-    analyze_account(&token, account.handle).await
+  let accounts = config.accounts.into_iter();
+  let futures: Vec<_> = accounts
+    .map(|acc| analyze_account(&token, acc.handle))
+    .collect();
+
+  for f in futures {
+    f.await;
   }
 }
 

@@ -16,36 +16,41 @@
 
 use std::collections::BTreeMap;
 
-fn count_word_occurance(search_result: &egg_mode::search::SearchResult) -> BTreeMap<String, u32> {
+const N_MOST_COMMON_WORDS: usize = 3;
+
+pub(crate) fn get_most_common_words(
+    search_results: &[egg_mode::search::SearchResult],
+) -> BTreeMap<String, u32> {
     let mut map_word_to_count = BTreeMap::new();
 
-    // Look thru each tweet
-    for tweet in &search_result.statuses {
-        // Normalize text (somewhat)
-        let words_in_tweet = tweet.text.to_lowercase();
+    // Look thru the results
+    for status in search_results {
+        // Look thru each tweet
+        for tweet in &status.statuses {
+            // Normalize text (somewhat)
+            let words_in_tweet = tweet.text.to_lowercase();
 
-        // Analyze each word
-        for word in words_in_tweet.split_whitespace() {
-            if map_word_to_count.contains_key(word) {
-                // Increment existing word
-                *map_word_to_count.get_mut(word).unwrap() += 1;
-            } else {
-                // Insert new word
-                map_word_to_count.insert(word.to_owned(), 1);
+            // Analyze each word
+            for word in words_in_tweet.split_whitespace() {
+                if map_word_to_count.contains_key(word) {
+                    // Increment existing word
+                    *map_word_to_count.get_mut(word).unwrap() += 1;
+                } else {
+                    // Insert new word
+                    map_word_to_count.insert(word.to_owned(), 1);
+                }
             }
         }
     }
 
+    println!(
+        "Total amount of words found: {}, returning the {} most common ones",
+        map_word_to_count.len(),
+        N_MOST_COMMON_WORDS
+    );
     map_word_to_count
-}
-const N_MOST_COMMON_WORDS: usize = 3;
-
-pub(crate) fn get_most_common_words(search_result: &egg_mode::search::SearchResult) -> Vec<String> {
-    let map_word_to_count = count_word_occurance(search_result);
-    map_word_to_count
-        .keys()
+        .into_iter()
         .take(N_MOST_COMMON_WORDS)
-        .cloned()
         .collect()
 }
 
@@ -58,6 +63,6 @@ async fn test_most_common_words() {
         .call(&token)
         .await
         .unwrap();
-    let words = get_most_common_words(&search);
+    let words = get_most_common_words(vec![search]);
     assert_eq!(words.is_empty(), false);
 }
