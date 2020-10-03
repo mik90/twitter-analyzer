@@ -22,16 +22,20 @@ pub(crate) fn get_most_common_words(
     search_results: &[egg_mode::search::SearchResult],
 ) -> BTreeMap<String, u32> {
     let mut map_word_to_count = BTreeMap::new();
+    let mut total_words = 0;
+    let mut tweets = 0;
 
     // Look thru the results
     for status in search_results {
         // Look thru each tweet
         for tweet in &status.statuses {
+            tweets += 1;
             // Normalize text (somewhat)
             let words_in_tweet = tweet.text.to_lowercase();
 
             // Analyze each word
             for word in words_in_tweet.split_whitespace() {
+                total_words += 1;
                 if map_word_to_count.contains_key(word) {
                     // Increment existing word
                     *map_word_to_count.get_mut(word).unwrap() += 1;
@@ -44,7 +48,9 @@ pub(crate) fn get_most_common_words(
     }
 
     println!(
-        "Total amount of words found: {}, returning the {} most common ones",
+        "Tweets:{} ,Total words: {}, unique words: {}, returning the {} most common ones",
+        tweets,
+        total_words,
         map_word_to_count.len(),
         N_MOST_COMMON_WORDS
     );
