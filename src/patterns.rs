@@ -26,22 +26,27 @@ pub(crate) fn get_most_common_words(
     let mut tweets = 0;
 
     // Look thru the results
-    for status in search_results {
+    for result in search_results {
         // Look thru each tweet
-        for tweet in &status.statuses {
-            tweets += 1;
+        tweets += result.statuses.len();
+
+        for tweet in &result.statuses {
             // Normalize text (somewhat)
-            let words_in_tweet = tweet.text.to_lowercase();
+            let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
+            total_words += words.len();
 
             // Analyze each word
-            for word in words_in_tweet.split_whitespace() {
-                total_words += 1;
-                if map_word_to_count.contains_key(word) {
+            for word in words {
+                let normalized_word = word
+                    .to_string()
+                    .to_lowercase()
+                    .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
+                if map_word_to_count.contains_key(&normalized_word) {
                     // Increment existing word
-                    *map_word_to_count.get_mut(word).unwrap() += 1;
+                    *map_word_to_count.get_mut(&normalized_word).unwrap() += 1;
                 } else {
                     // Insert new word
-                    map_word_to_count.insert(word.to_owned(), 1);
+                    map_word_to_count.insert(normalized_word.to_owned(), 1);
                 }
             }
         }
