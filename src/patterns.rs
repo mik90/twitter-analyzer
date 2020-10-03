@@ -13,11 +13,59 @@
  *      - Account location
  * - Serialize summation to disk in json
  */
-
+extern crate regex;
+use regex::Regex;
 use std::collections::BTreeMap;
+
+/// A category of handle format with their corresponding regex
+enum HandlePattern {
+    NameWithNumbers, // somename1234514 [a-z]+\d+
+    Lowercase,       // lowercase [a-z]+
+    PascalCase,      // pascalCase [a-z]+[A-Z][a-z]+
+    CamelCase,       // CamelCase [A-Z][a-z]+[A-Z][a-z]+
+    Uppercase,       // UPPERCASE [A-Z]+
+    Other,           // Other *
+}
+
+impl HandlePattern {
+    /// Parse a handle into a category
+    fn from(handle: &str) -> HandlePattern {
+        // Create a regex to match against
+        // https://stackoverflow.com/a/50520581
+        handle_re = Regex::new(
+            r#"(?x)
+            ([a-z]+\d+) |
+            (prev) |
+            (goto)\s+(\d+)
+        "#,
+        )
+        .unwrap();
+
+        let captures = input_re.captures(input).map(|captures| {
+            captures
+                .iter() // All the captured groups
+                .skip(1) // Skipping the complete match
+                .flat_map(|c| c) // Ignoring all empty optional matches
+                .map(|c| c.as_str()) // Grab the original strings
+                .collect::<Vec<_>>() // Create a vector
+        });
+
+        // Match against the captured values as a slice
+        match captures.as_ref().map(|c| c.as_slice()) {
+            Some(["next"]) => current_question_number += 1,
+            Some(["prev"]) => current_question_number -= 1,
+            Some(["goto", x]) => {
+                let x = x.parse().expect("can't parse number");
+                current_question_number = x;
+            }
+            _ => panic!("Unknown Command: {}", input),
+        }
+    }
+}
 
 const N_MOST_COMMON_WORDS: usize = 3;
 
+/// Finds the most common words in a given search
 pub(crate) fn get_most_common_words(
     search_results: &[egg_mode::search::SearchResult],
 ) -> BTreeMap<String, u32> {

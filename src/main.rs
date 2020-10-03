@@ -44,17 +44,30 @@ async fn main() {
     }
 
     if matches.is_present("account") {
-        analyze_account(
-            &maybe_token.unwrap(),
-            matches.value_of("account").unwrap().to_string(),
+        let start = std::time::Instant::now();
+        let account_handle = matches.value_of("account").unwrap();
+        analyze_account(&maybe_token.unwrap(), account_handle.to_owned()).await;
+        let end = std::time::Instant::now();
+        let duration = end - start;
+        println!(
+            "Time to analyze {}: {} milliseconds",
+            account_handle,
+            duration.as_millis()
         )
-        .await;
     } else {
         let config_path = matches.value_of("config").unwrap_or("conf/accounts.json");
         let maybe_config = Config::get(&std::path::Path::new(config_path));
         if maybe_config.is_none() {
             std::process::exit(1);
         }
+        let start = std::time::Instant::now();
         analyze_accounts_from_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
+        let end = std::time::Instant::now();
+        let duration = end - start;
+        println!(
+            "Time to analyze accounts from {}: {} milliseconds",
+            config_path,
+            duration.as_millis()
+        )
     }
 }

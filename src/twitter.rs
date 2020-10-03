@@ -20,19 +20,21 @@ const N_SEARCHES_TO_RUN: u32 = 5;
 
 /// account_handle includes the "@"
 pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
-  let mut results: Vec<egg_mode::search::SearchResult> = Vec::new();
+  let mut searches: Vec<_> = Vec::new();
   for _ in 0..N_SEARCHES_TO_RUN {
-    let search_result = egg_mode::search::search(account_handle.clone())
+    let search = egg_mode::search::search(account_handle.clone())
       .result_type(egg_mode::search::ResultType::Recent)
       .count(N_TWEETS_PER_PAGE)
-      .call(&token)
-      .await
-      .unwrap()
-      .response;
-    results.push(search_result);
+      .call(&token);
+    searches.push(search);
   }
 
-  let words = patterns::get_most_common_words(&results);
+  let mut responses: Vec<_> = Vec::new();
+  for future in searches {
+    responses.push(future.await.unwrap().response);
+  }
+
+  let words = patterns::get_most_common_words(&responses);
   println!("------------------------------------");
   println!("Most common words for {}:", account_handle);
   for word in &words {
