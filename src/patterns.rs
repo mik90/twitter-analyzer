@@ -14,51 +14,47 @@
  * - Serialize summation to disk in json
  */
 extern crate regex;
-use regex::Regex;
+use regex::RegexSet;
 use std::collections::BTreeMap;
 
 /// A category of handle format with their corresponding regex
+/// TODO: Is it possible to map an enum directly to a Regex?
+#[derive(Debug, Eq, PartialEq)]
 enum HandlePattern {
-    NameWithNumbers, // somename1234514 [a-z]+\d+
-    Lowercase,       // lowercase [a-z]+
-    PascalCase,      // pascalCase [a-z]+[A-Z][a-z]+
-    CamelCase,       // CamelCase [A-Z][a-z]+[A-Z][a-z]+
-    Uppercase,       // UPPERCASE [A-Z]+
-    Other,           // Other *
+    NameWithNumbers = 0, // somename1234514 [a-z]+\d+
+    Lowercase = 1,       // lowercase [a-z]+
+    PascalCase = 2,      // pascalCase [a-z]+[A-Z][a-z]+
+    CamelCase = 3,       // CamelCase [A-Z][a-z]+[A-Z][a-z]+
+    Uppercase = 4,       // UPPERCASE [A-Z]+
+    Other = 5,           // Other .*
 }
 
 impl HandlePattern {
     /// Parse a handle into a category
-    fn from(handle: &str) -> HandlePattern {
-        // Create a regex to match against
-        // https://stackoverflow.com/a/50520581
-        handle_re = Regex::new(
-            r#"(?x)
-            ([a-z]+\d+) |
-            (prev) |
-            (goto)\s+(\d+)
-        "#,
-        )
+    pub fn from(handle: &str) -> HandlePattern {
+        let set = RegexSet::new(&[
+            r"^[a-z]+\d+$",              // NameWithNumbers
+            r"^[a-z]+$",                 // Lowercase
+            r"^[a-z]+[A-Z][a-z]+$",      // pascalCase
+            r"^[A-Z][a-z]+[A-Z][a-z]+$", // CamelCase
+            r"^[A-Z]+$",                 // Uppercase
+            r"^.*$",                     // Other
+        ])
         .unwrap();
+        let matches = set.matches(handle);
 
-        let captures = input_re.captures(input).map(|captures| {
-            captures
-                .iter() // All the captured groups
-                .skip(1) // Skipping the complete match
-                .flat_map(|c| c) // Ignoring all empty optional matches
-                .map(|c| c.as_str()) // Grab the original strings
-                .collect::<Vec<_>>() // Create a vector
-        });
-
-        // Match against the captured values as a slice
-        match captures.as_ref().map(|c| c.as_slice()) {
-            Some(["next"]) => current_question_number += 1,
-            Some(["prev"]) => current_question_number -= 1,
-            Some(["goto", x]) => {
-                let x = x.parse().expect("can't parse number");
-                current_question_number = x;
-            }
-            _ => panic!("Unknown Command: {}", input),
+        if matches.matched(HandlePattern::NameWithNumbers as usize) {
+            HandlePattern::NameWithNumbers
+        } else if matches.matched(HandlePattern::Lowercase as usize) {
+            HandlePattern::Lowercase
+        } else if matches.matched(HandlePattern::PascalCase as usize) {
+            HandlePattern::PascalCase
+        } else if matches.matched(HandlePattern::CamelCase as usize) {
+            HandlePattern::CamelCase
+        } else if matches.matched(HandlePattern::Uppercase as usize) {
+            HandlePattern::Uppercase
+        } else {
+            HandlePattern::Other
         }
     }
 }
@@ -122,6 +118,39 @@ async fn test_most_common_words() {
         .call(&token)
         .await
         .unwrap();
-    let words = get_most_common_words(vec![search]);
+    let words = get_most_common_words(&[search.response]);
     assert_eq!(words.is_empty(), false);
+}
+
+#[tokio::test]
+async fn test_handle_firstname_lastname() {
+    assert_eq!(
+        HandlePattern::from("firstname1234"),
+        HandlePattern::NameWithNumbers
+    );
+}
+
+#[tokio::test]
+async fn test_handle_lowercase() {
+    assert_eq!(HandlePattern::from("lowercase"), HandlePattern::Lowercase);
+}
+
+#[tokio::test]
+async fn test_handle_uppercase() {
+    assert_eq!(HandlePattern::from("UPPERCASE"), HandlePattern::Uppercase);
+}
+
+#[tokio::test]
+async fn test_handle_camelcase() {
+    assert_eq!(HandlePattern::from("CamelCase"), HandlePattern::CamelCase);
+}
+
+#[tokio::test]
+async fn test_handle_pascalcase() {
+    assert_eq!(HandlePattern::from("pascalCase"), HandlePattern::PascalCase);
+}
+
+#[tokio::test]
+async fn test_handle_other() {
+    assert_eq!(HandlePattern::from("123o%her"), HandlePattern::Other);
 }
