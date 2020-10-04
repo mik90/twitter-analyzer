@@ -1,5 +1,5 @@
 [package]
-name = "twitter-bot"
+name = "twitter-analyzer"
 version = "0.1.0"
 authors = ["Mike Kaliman <kaliman.mike@gmail.com>"]
 edition = "2018"
