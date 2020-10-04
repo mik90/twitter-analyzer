@@ -40,6 +40,10 @@ pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: Str
   for word in &words {
     println!("{} was seen {} times", word.0, word.1);
   }
+  let patterns = patterns::get_most_common_handle_patterns(&responses);
+  for pattern in &patterns {
+    println!("The pattern {:?} was seen {} times", pattern.0, pattern.1);
+  }
   println!("------------------------------------");
 }
 

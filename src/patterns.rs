@@ -19,8 +19,8 @@ use std::collections::BTreeMap;
 
 /// A category of handle format with their corresponding regex
 /// TODO: Is it possible to map an enum directly to a Regex?
-#[derive(Debug, Eq, PartialEq)]
-enum HandlePattern {
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum HandlePattern {
     NameWithNumbers = 0, // somename1234514 [a-z]+\d+
     Lowercase = 1,       // lowercase [a-z]+
     PascalCase = 2,      // pascalCase [a-z]+[A-Z][a-z]+
@@ -59,12 +59,12 @@ impl HandlePattern {
     }
 }
 
-const N_MOST_COMMON_WORDS: usize = 3;
+const N_MOST_COMMON_VALUES: usize = 3;
 
 /// Finds the most common words in a given search
 pub(crate) fn get_most_common_words(
     search_results: &[egg_mode::search::SearchResult],
-) -> BTreeMap<String, u32> {
+) -> BTreeMap<String, usize> {
     let mut map_word_to_count = BTreeMap::new();
     let mut total_words = 0;
     let mut tweets = 0;
@@ -85,13 +85,8 @@ pub(crate) fn get_most_common_words(
                     .to_string()
                     .to_lowercase()
                     .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
-                if map_word_to_count.contains_key(&normalized_word) {
-                    // Increment existing word
-                    *map_word_to_count.get_mut(&normalized_word).unwrap() += 1;
-                } else {
-                    // Insert new word
-                    map_word_to_count.insert(normalized_word.to_owned(), 1);
-                }
+                // Insert count of 0 if the word was not seen before
+                *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
             }
         }
     }
@@ -101,11 +96,39 @@ pub(crate) fn get_most_common_words(
         tweets,
         total_words,
         map_word_to_count.len(),
-        N_MOST_COMMON_WORDS
+        N_MOST_COMMON_VALUES
     );
     map_word_to_count
         .into_iter()
-        .take(N_MOST_COMMON_WORDS)
+        .take(N_MOST_COMMON_VALUES)
+        .collect()
+}
+
+/// Finds the most common handle patterns in a given search
+pub(crate) fn get_most_common_handle_patterns(
+    search_results: &[egg_mode::search::SearchResult],
+) -> BTreeMap<HandlePattern, usize> {
+    let mut map_pattern_to_count = BTreeMap::new();
+
+    // Look thru the results
+    for result in search_results {
+        for tweet in &result.statuses {
+            let handle = &tweet.user.as_ref().unwrap().screen_name;
+            let pattern = HandlePattern::from(handle.as_str());
+
+            // Insert count of 0 if the pattern was not seen before
+            *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
+        }
+    }
+
+    println!(
+        "Unique patterns seen: {}, returning the {} most common ones",
+        map_pattern_to_count.len(),
+        N_MOST_COMMON_VALUES
+    );
+    map_pattern_to_count
+        .into_iter()
+        .take(N_MOST_COMMON_VALUES)
         .collect()
 }
 
