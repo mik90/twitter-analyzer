@@ -13,13 +13,46 @@
  *      - Account location
  * - Serialize summation to disk in json
  */
+extern crate chrono;
 extern crate regex;
 use regex::RegexSet;
 use std::collections::BTreeMap;
 
+/// Result of examining account
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct SearchAnalysis {
+    query: String,
+    search_date_utc: chrono::DateTime<chrono::Utc>,
+    word_frequency: BTreeMap<String, usize>,
+    handle_patterns: BTreeMap<HandlePattern, usize>,
+}
+
+impl SearchAnalysis {
+    pub fn new(
+        query: &str,
+        date: chrono::DateTime<chrono::Utc>,
+        search: &egg_mode::search::SearchResult,
+    ) -> Option<SearchAnalysis> {
+        Some(SearchAnalysis {
+            query: query.to_owned(),
+            search_date_utc: date,
+            word_frequency: get_most_common_words(&search),
+            handle_patterns: get_most_common_handle_patterns(&search),
+        })
+    }
+
+    fn get_unique_words_seen(&self) -> usize {
+        self.word_frequency.len()
+    }
+
+    fn get_handle_patterns_seen(&self) -> usize {
+        self.handle_patterns.len()
+    }
+}
+
 /// A category of handle format with their corresponding regex
 /// TODO: Is it possible to map an enum directly to a Regex?
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum HandlePattern {
     NameWithNumbers = 0, // somename1234514 [a-z]+\d+
     Lowercase = 1,       // lowercase [a-z]+
@@ -59,77 +92,45 @@ impl HandlePattern {
     }
 }
 
-const N_MOST_COMMON_VALUES: usize = 3;
-
 /// Finds the most common words in a given search
 pub(crate) fn get_most_common_words(
-    search_results: &[egg_mode::search::SearchResult],
+    search_result: &egg_mode::search::SearchResult,
 ) -> BTreeMap<String, usize> {
     let mut map_word_to_count = BTreeMap::new();
-    let mut total_words = 0;
-    let mut tweets = 0;
 
-    // Look thru the results
-    for result in search_results {
-        // Look thru each tweet
-        tweets += result.statuses.len();
+    for tweet in &search_result.statuses {
+        // Normalize text (somewhat)
+        let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
 
-        for tweet in &result.statuses {
-            // Normalize text (somewhat)
-            let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
-            total_words += words.len();
-
-            // Analyze each word
-            for word in words {
-                let normalized_word = word
-                    .to_string()
-                    .to_lowercase()
-                    .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
-                // Insert count of 0 if the word was not seen before
-                *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
-            }
+        // Analyze each word
+        for word in words {
+            let normalized_word = word
+                .to_string()
+                .to_lowercase()
+                .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
+            // Insert count of 0 if the word was not seen before
+            *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
         }
     }
 
-    println!(
-        "Tweets:{} ,Total words: {}, unique words: {}, returning the {} most common ones",
-        tweets,
-        total_words,
-        map_word_to_count.len(),
-        N_MOST_COMMON_VALUES
-    );
     map_word_to_count
-        .into_iter()
-        .take(N_MOST_COMMON_VALUES)
-        .collect()
 }
 
 /// Finds the most common handle patterns in a given search
 pub(crate) fn get_most_common_handle_patterns(
-    search_results: &[egg_mode::search::SearchResult],
+    search_result: &egg_mode::search::SearchResult,
 ) -> BTreeMap<HandlePattern, usize> {
     let mut map_pattern_to_count = BTreeMap::new();
 
-    // Look thru the results
-    for result in search_results {
-        for tweet in &result.statuses {
-            let handle = &tweet.user.as_ref().unwrap().screen_name;
-            let pattern = HandlePattern::from(handle.as_str());
+    for tweet in &search_result.statuses {
+        let handle = &tweet.user.as_ref().unwrap().screen_name;
+        let pattern = HandlePattern::from(handle.as_str());
 
-            // Insert count of 0 if the pattern was not seen before
-            *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
-        }
+        // Insert count of 0 if the pattern was not seen before
+        *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
     }
 
-    println!(
-        "Unique patterns seen: {}, returning the {} most common ones",
-        map_pattern_to_count.len(),
-        N_MOST_COMMON_VALUES
-    );
     map_pattern_to_count
-        .into_iter()
-        .take(N_MOST_COMMON_VALUES)
-        .collect()
 }
 
 #[tokio::test]
@@ -141,8 +142,8 @@ async fn test_most_common_words() {
         .call(&token)
         .await
         .unwrap();
-    let words = get_most_common_words(&[search.response]);
-    assert_eq!(words.is_empty(), false);
+    let words = get_most_common_words(&search.response);
+    assert!(!words.is_empty());
 }
 
 #[tokio::test]

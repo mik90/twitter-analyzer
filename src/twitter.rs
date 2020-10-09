@@ -3,6 +3,7 @@ pub struct TwitterAccount {
   handle: String, // Includes "@"
   category: String,
 }
+
 use crate::patterns;
 // Not used, but can be useful
 fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
@@ -15,32 +16,24 @@ fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
   }
 }
 
-const N_TWEETS_PER_PAGE: u32 = 20;
-const N_SEARCHES_TO_RUN: u32 = 5;
+/// Maximum for egg-mode
+const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
 pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
-  let mut searches: Vec<_> = Vec::new();
-  for _ in 0..N_SEARCHES_TO_RUN {
-    let search = egg_mode::search::search(account_handle.clone())
-      .result_type(egg_mode::search::ResultType::Recent)
-      .count(N_TWEETS_PER_PAGE)
-      .call(&token);
-    searches.push(search);
-  }
+  let search = egg_mode::search::search(account_handle.clone())
+    .result_type(egg_mode::search::ResultType::Recent)
+    .count(N_TWEETS_PER_PAGE)
+    .call(&token);
 
-  let mut responses: Vec<_> = Vec::new();
-  for future in searches {
-    responses.push(future.await.unwrap().response);
-  }
-
-  let words = patterns::get_most_common_words(&responses);
+  let response = search.await.unwrap().response;
+  let words = patterns::get_most_common_words(&response);
   println!("------------------------------------");
   println!("Most common words for {}:", account_handle);
   for word in &words {
     println!("{} was seen {} times", word.0, word.1);
   }
-  let patterns = patterns::get_most_common_handle_patterns(&responses);
+  let patterns = patterns::get_most_common_handle_patterns(&response);
   for pattern in &patterns {
     println!("The pattern {:?} was seen {} times", pattern.0, pattern.1);
   }

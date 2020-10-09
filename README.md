@@ -19,8 +19,10 @@
 
 
 #### Todo
-- Analyze common:
-  - phrases
-  - hashtags
 - Find what features are more common to one query vs another
 - Log search queries to check cumulative data
+- Separate analysis from printing
+#### Storage
+- Store in actual db or just in json?
+- Json
+  - ./analysis/<handle>/<search-date>/analysis.json
