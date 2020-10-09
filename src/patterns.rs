@@ -27,6 +27,9 @@ pub struct SearchAnalysis {
     handle_patterns: BTreeMap<HandlePattern, usize>,
 }
 
+const N_MOST_COMMON_WORDS: usize = 5;
+const N_MOST_HANDLE_PATTERNS: usize = 3;
+
 impl SearchAnalysis {
     pub fn new(
         query: &str,
@@ -47,6 +50,28 @@ impl SearchAnalysis {
 
     fn get_handle_patterns_seen(&self) -> usize {
         self.handle_patterns.len()
+    }
+
+    pub fn summary(&self) -> String {
+        let mut summary = String::from("------------------------------------");
+
+        summary.push_str(format!("Most common words for {}:", self.query).as_str());
+        for word in self.word_frequency.into_iter().take(N_MOST_COMMON_WORDS) {
+            summary.push_str(format!("{} was seen {} times", word.0, word.1).as_str());
+        }
+
+        for pattern in self
+            .handle_patterns
+            .into_iter()
+            .take(N_MOST_HANDLE_PATTERNS)
+        {
+            summary.push_str(
+                format!("The pattern {:?} was seen {} times", pattern.0, pattern.1).as_str(),
+            );
+        }
+        summary.push_str("------------------------------------");
+
+        summary
     }
 }
 

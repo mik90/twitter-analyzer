@@ -21,23 +21,15 @@ const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
 pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
+  let date = chrono::Utc::now();
   let search = egg_mode::search::search(account_handle.clone())
     .result_type(egg_mode::search::ResultType::Recent)
     .count(N_TWEETS_PER_PAGE)
     .call(&token);
 
   let response = search.await.unwrap().response;
-  let words = patterns::get_most_common_words(&response);
-  println!("------------------------------------");
-  println!("Most common words for {}:", account_handle);
-  for word in &words {
-    println!("{} was seen {} times", word.0, word.1);
-  }
-  let patterns = patterns::get_most_common_handle_patterns(&response);
-  for pattern in &patterns {
-    println!("The pattern {:?} was seen {} times", pattern.0, pattern.1);
-  }
-  println!("------------------------------------");
+  let analysis = patterns::SearchAnalysis::new(account_handle.as_str(), date, &response);
+  println!("{}", analysis.unwrap().summary());
 }
 
 pub(crate) async fn analyze_accounts_from_config(token: egg_mode::Token, config: Config) {
