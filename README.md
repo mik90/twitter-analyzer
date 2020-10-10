@@ -2,7 +2,7 @@
 
 ## How-to
 - Analyze a twitter handle with `cargo run --release -- -a @twitter`
-- Analyze accounts from conf/accounts.json with just `cargo run`
+- Analyze accounts from `conf/accounts.json` with just `cargo run --release`
 
 
 ### What it does
