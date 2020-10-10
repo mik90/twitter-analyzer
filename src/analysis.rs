@@ -17,14 +17,15 @@ extern crate chrono;
 extern crate regex;
 use regex::RegexSet;
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct SearchAnalysis {
-    query: String,
-    search_date_utc: chrono::DateTime<chrono::Utc>,
-    word_frequency: BTreeMap<String, usize>,
-    handle_patterns: BTreeMap<HandlePattern, usize>,
+    pub query: String,
+    pub date_utc: chrono::DateTime<chrono::Utc>,
+    pub word_frequency: BTreeMap<String, usize>,
+    pub handle_patterns: BTreeMap<HandlePattern, usize>,
 }
 
 const N_MOST_COMMON_WORDS: usize = 5;
@@ -38,17 +39,39 @@ impl SearchAnalysis {
     ) -> Option<SearchAnalysis> {
         Some(SearchAnalysis {
             query: query.to_owned(),
-            search_date_utc: date,
+            date_utc: date,
             word_frequency: get_most_common_words(&search),
             handle_patterns: get_most_common_handle_patterns(&search),
         })
     }
 
-    fn get_unique_words_seen(&self) -> usize {
+    /// Saves to $PWD/<base_dir>/<handle>/<search-date>/analysis.json
+    pub fn to_storage_location(&self, base_dir: &Path) -> PathBuf {
+        // ISO 8601 / RFC 3339 date & time format
+        /*
+        Why does this expect the *second* argument to be an Option???
+        let out: PathBuf = [
+            base_dir.to_str(),
+            self.query.as_str(),
+            &self.date_utc.format("%+").to_string(),
+            "analysis.json",
+        ]
+        .iter()
+        .collect();
+        out
+        */
+        let mut path = PathBuf::from(base_dir);
+        path.push(&self.query);
+        path.push(&self.date_utc.format("%+").to_string());
+        path.push("analysis.json");
+        path
+    }
+
+    fn _get_unique_words_seen(&self) -> usize {
         self.word_frequency.len()
     }
 
-    fn get_handle_patterns_seen(&self) -> usize {
+    fn _get_handle_patterns_seen(&self) -> usize {
         self.handle_patterns.len()
     }
 
@@ -56,15 +79,11 @@ impl SearchAnalysis {
         let mut summary = String::from("------------------------------------");
 
         summary.push_str(format!("Most common words for {}:", self.query).as_str());
-        for word in self.word_frequency.into_iter().take(N_MOST_COMMON_WORDS) {
+        for word in self.word_frequency.iter().take(N_MOST_COMMON_WORDS) {
             summary.push_str(format!("{} was seen {} times", word.0, word.1).as_str());
         }
 
-        for pattern in self
-            .handle_patterns
-            .into_iter()
-            .take(N_MOST_HANDLE_PATTERNS)
-        {
+        for pattern in self.handle_patterns.iter().take(N_MOST_HANDLE_PATTERNS) {
             summary.push_str(
                 format!("The pattern {:?} was seen {} times", pattern.0, pattern.1).as_str(),
             );
@@ -160,14 +179,15 @@ pub(crate) fn get_most_common_handle_patterns(
 
 #[tokio::test]
 async fn test_most_common_words() {
-    let token = crate::auth::get_token(std::path::Path::new("auth/bearer.token")).unwrap();
-    let search = egg_mode::search::search("twitter")
-        .result_type(egg_mode::search::ResultType::Recent)
-        .count(1)
-        .call(&token)
-        .await
-        .unwrap();
-    let words = get_most_common_words(&search.response);
+    let response = crate::test::get_test_response().await.response;
+    let words = get_most_common_words(&response);
+    assert!(!words.is_empty());
+}
+
+#[tokio::test]
+async fn test_handle_patterns() {
+    let response = crate::test::get_test_response().await.response;
+    let words = get_most_common_handle_patterns(&response);
     assert!(!words.is_empty());
 }
 

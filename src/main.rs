@@ -1,4 +1,6 @@
-mod patterns;
+mod analysis;
+mod storage;
+mod test;
 mod twitter;
 
 extern crate clap;
@@ -11,7 +13,7 @@ async fn main() {
     let matches = App::new("twitter-bot")
         .version("0.1")
         .author("Mike K. <kaliman.mike@gmail.com>")
-        .about("Searches for patterns in twitter mentions")
+        .about("Searches for analysis in twitter mentions")
         .arg(
             Arg::with_name("config")
                 .short("c")
@@ -44,8 +46,9 @@ async fn main() {
     }
 
     if matches.is_present("account") {
-        let start = std::time::Instant::now();
         let account_handle = matches.value_of("account").unwrap();
+
+        let start = std::time::Instant::now();
         analyze_account(&maybe_token.unwrap(), account_handle.to_owned()).await;
         let end = std::time::Instant::now();
         let duration = end - start;
@@ -60,6 +63,7 @@ async fn main() {
         if maybe_config.is_none() {
             std::process::exit(1);
         }
+
         let start = std::time::Instant::now();
         analyze_accounts_from_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
         let end = std::time::Instant::now();

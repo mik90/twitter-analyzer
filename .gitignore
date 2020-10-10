@@ -11,3 +11,5 @@ Cargo.lock
 
 /auth/*
 /data/*
+/analysis/*
+/test_analysis/*
