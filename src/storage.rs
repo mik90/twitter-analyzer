@@ -1,4 +1,5 @@
 use crate::analysis::SearchAnalysis;
+use std::path::PathBuf;
 
 use std::path::Path;
 
@@ -11,7 +12,7 @@ pub fn store(item: &SearchAnalysis, location: &Path) {
 
 #[tokio::test]
 async fn test_analysis_storage() {
-  crate::test::clean_test_area();
+  crate::test::setup_test_storage();
   let response = crate::test::get_test_response().await;
   let analysis = SearchAnalysis::new(
     crate::test::TEST_QUERY,
@@ -19,24 +20,52 @@ async fn test_analysis_storage() {
     &response,
   )
   .unwrap();
+
   store(
     &analysis,
     &Path::new(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION),
   );
 
-  let base_dir = std::fs::read_dir(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION).unwrap();
   // There should only be one handle in the base directory
-  assert_eq!(base_dir.into_iter().count(), 1);
+  assert_eq!(
+    std::fs::read_dir(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION)
+      .unwrap()
+      .into_iter()
+      .count(),
+    1,
+    "There should be a single file in {}",
+    crate::test::TEST_ANALYSIS_STORAGE_LOCATION,
+  );
 
-  let handle_path = base_dir.into_iter().next().unwrap().unwrap().path();
-  let handle_dir = std::fs::read_dir(&handle_path).unwrap();
+  let handle_dir: PathBuf = std::fs::read_dir(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION)
+    .unwrap()
+    .into_iter()
+    .next()
+    .unwrap()
+    .unwrap()
+    .path();
   // There should only be one date in the handle's directory
-  assert_eq!(handle_dir.into_iter().count(), 1);
+  assert_eq!(
+    std::fs::read_dir(&handle_dir).unwrap().into_iter().count(),
+    1,
+    "There should be a single file in {:?}",
+    handle_dir
+  );
 
-  let date_path = handle_dir.into_iter().next().unwrap().unwrap().path();
-  let date_dir = std::fs::read_dir(&date_path).unwrap();
+  let date_dir: PathBuf = std::fs::read_dir(&handle_dir)
+    .unwrap()
+    .into_iter()
+    .next()
+    .unwrap()
+    .unwrap()
+    .path();
   // There should only be one analsyis.json in the date's directory
-  assert_eq!(date_dir.into_iter().count(), 1);
+  assert_eq!(
+    std::fs::read_dir(&date_dir).unwrap().into_iter().count(),
+    1,
+    "There should be a single file in {:?}",
+    date_dir
+  );
 
   /* @TODO Check expected filename
    * let expected_filename = Some(std::ffi::OsStr::new("analysis.json"));

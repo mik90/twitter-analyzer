@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 
 // It's test code, there's probably a better way to do this but im tired
@@ -22,12 +23,21 @@ pub(crate) fn get_test_date() -> chrono::DateTime<chrono::Utc> {
   chrono::Utc::now()
 }
 
+/// Ensures that test analysis area is usable
 #[allow(dead_code)]
-pub(crate) fn clean_test_area() {
-  println!(
-    "Cleaning test analysis storage area at {:?}",
-    PathBuf::from(TEST_ANALYSIS_STORAGE_LOCATION).canonicalize()
-  );
-  std::fs::remove_dir_all(&TEST_ANALYSIS_STORAGE_LOCATION)
-    .expect("Could not clean out storage area!");
+pub(crate) fn setup_test_storage() {
+  let storage_area = PathBuf::from(TEST_ANALYSIS_STORAGE_LOCATION);
+
+  let maybe_meta = fs::metadata(&storage_area);
+  if maybe_meta.is_err() {
+    // Create directory
+    fs::create_dir(&storage_area).expect("Could not create storage area!");
+  } else {
+    println!(
+      "Cleaning test analysis storage area at {:?}",
+      storage_area.canonicalize()
+    );
+    std::fs::remove_dir_all(&TEST_ANALYSIS_STORAGE_LOCATION)
+      .expect("Could not clean out storage area!");
+  }
 }
