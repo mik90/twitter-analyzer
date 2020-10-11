@@ -25,4 +25,4 @@
 #### Storage
 - Store in actual db or just in json?
 - Json
-  - ./analysis/<handle>/<search-date>/analysis.json
+  - ./analysis/\<handle\>/\<search_date\>/analysis.json
