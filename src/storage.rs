@@ -1,13 +1,22 @@
 use crate::analysis::SearchAnalysis;
-use std::path::PathBuf;
 
-use std::path::Path;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 const DEFAULT_STORAGE_LOCATION: &str = "analysis";
 
-pub fn store(item: &SearchAnalysis, location: &Path) {
-  let path = item.to_storage_location(location);
-  println!("Storing analysis in {:?}", path);
+pub fn store(item: &SearchAnalysis, location: &Path) -> Result<(), std::io::Error> {
+  let storage_path = item.storage_location(location);
+  println!("Storing analysis in {:?}", &storage_path);
+  let parent_dir = storage_path.parent().unwrap();
+  if fs::metadata(&parent_dir).is_err() {
+    fs::create_dir_all(&parent_dir).expect("Could not create directory despite it not being there");
+  }
+  let serialized_item = serde_json::to_string(item)?;
+  let mut file = std::fs::File::create(&storage_path)?;
+  file.write(serialized_item.as_bytes())?;
+  Ok(())
 }
 
 #[tokio::test]
@@ -24,7 +33,8 @@ async fn test_analysis_storage() {
   store(
     &analysis,
     &Path::new(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION),
-  );
+  )
+  .expect("Could not store analysis!");
 
   // There should only be one handle in the base directory
   assert_eq!(

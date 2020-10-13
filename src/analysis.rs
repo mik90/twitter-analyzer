@@ -46,7 +46,7 @@ impl SearchAnalysis {
     }
 
     /// Saves to $PWD/<base_dir>/<handle>/<search-date>/analysis.json
-    pub fn to_storage_location(&self, base_dir: &Path) -> PathBuf {
+    pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
         // ISO 8601 / RFC 3339 date & time format
         /*
         Why does this expect the *second* argument to be an Option???
