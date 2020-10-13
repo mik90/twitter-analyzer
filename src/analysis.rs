@@ -15,6 +15,7 @@
  */
 extern crate chrono;
 extern crate regex;
+use crate::storage;
 use regex::RegexSet;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -30,6 +31,42 @@ pub struct SearchAnalysis {
 
 const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
+
+/// Maximum for egg-mode
+const N_TWEETS_PER_PAGE: u32 = 100;
+
+/// account_handle includes the "@"
+pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
+    let response = egg_mode::search::search(account_handle.clone())
+        .result_type(egg_mode::search::ResultType::Recent)
+        .count(N_TWEETS_PER_PAGE)
+        .call(&token)
+        .await
+        .unwrap()
+        .response;
+
+    let analysis =
+        SearchAnalysis::new(account_handle.as_str(), chrono::Utc::now(), &response).unwrap();
+    let status = storage::store(&analysis);
+    if status.is_err() {
+        eprintln!("Could not store analysis!");
+    }
+    println!("{}", analysis.summary());
+}
+
+/// Analyze multiple accounts as deserialized from configuration
+pub(crate) async fn analyze_config(token: egg_mode::Token, config: crate::twitter::Config) {
+    // Map accounts to analyzation calls
+    let futures: Vec<_> = config
+        .accounts
+        .into_iter()
+        .map(|acc| analyze_account(&token, acc.handle))
+        .collect();
+
+    for f in futures {
+        f.await;
+    }
+}
 
 impl SearchAnalysis {
     pub fn new(
@@ -76,19 +113,19 @@ impl SearchAnalysis {
     }
 
     pub fn summary(&self) -> String {
-        let mut summary = String::from("------------------------------------");
+        let mut summary = String::from("------------------------------------\n");
 
-        summary.push_str(format!("Most common words for {}:", self.query).as_str());
+        summary.push_str(format!("Most common words for {}:\n", self.query).as_str());
         for word in self.word_frequency.iter().take(N_MOST_COMMON_WORDS) {
-            summary.push_str(format!("{} was seen {} times", word.0, word.1).as_str());
+            summary.push_str(format!("{} was seen {} times\n", word.0, word.1).as_str());
         }
 
         for pattern in self.handle_patterns.iter().take(N_MOST_HANDLE_PATTERNS) {
             summary.push_str(
-                format!("The pattern {:?} was seen {} times", pattern.0, pattern.1).as_str(),
+                format!("The pattern {:?} was seen {} times\n", pattern.0, pattern.1).as_str(),
             );
         }
-        summary.push_str("------------------------------------");
+        summary.push_str("------------------------------------\n");
 
         summary
     }

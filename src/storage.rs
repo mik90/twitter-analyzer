@@ -2,13 +2,20 @@ use crate::analysis::SearchAnalysis;
 
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const DEFAULT_STORAGE_LOCATION: &str = "analysis";
 
-pub fn store(item: &SearchAnalysis, location: &Path) -> Result<(), std::io::Error> {
-  let storage_path = item.storage_location(location);
-  println!("Storing analysis in {:?}", &storage_path);
+pub fn store(item: &SearchAnalysis) -> Result<(), std::io::Error> {
+  store_with_location(item, &Path::new(DEFAULT_STORAGE_LOCATION))
+}
+/**
+ *  Stores a SearchAnalysis and directory structure indicates handle and date
+ *  Base location is optional and will default to DEFAULT_STORAGE_LOCATION.
+ */
+pub fn store_with_location(item: &SearchAnalysis, base_dir: &Path) -> Result<(), std::io::Error> {
+  let storage_path = item.storage_location(base_dir);
+  println!("Storing analysis as {:?}", &storage_path);
   let parent_dir = storage_path.parent().unwrap();
   if fs::metadata(&parent_dir).is_err() {
     fs::create_dir_all(&parent_dir).expect("Could not create directory despite it not being there");
@@ -30,7 +37,7 @@ async fn test_analysis_storage() {
   )
   .unwrap();
 
-  store(
+  store_with_location(
     &analysis,
     &Path::new(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION),
   )
@@ -47,13 +54,14 @@ async fn test_analysis_storage() {
     crate::test::TEST_ANALYSIS_STORAGE_LOCATION,
   );
 
-  let handle_dir: PathBuf = std::fs::read_dir(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION)
-    .unwrap()
-    .into_iter()
-    .next()
-    .unwrap()
-    .unwrap()
-    .path();
+  let handle_dir: std::path::PathBuf =
+    std::fs::read_dir(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION)
+      .unwrap()
+      .into_iter()
+      .next()
+      .unwrap()
+      .unwrap()
+      .path();
   // There should only be one date in the handle's directory
   assert_eq!(
     std::fs::read_dir(&handle_dir).unwrap().into_iter().count(),
@@ -62,7 +70,7 @@ async fn test_analysis_storage() {
     handle_dir
   );
 
-  let date_dir: PathBuf = std::fs::read_dir(&handle_dir)
+  let date_dir: std::path::PathBuf = std::fs::read_dir(&handle_dir)
     .unwrap()
     .into_iter()
     .next()

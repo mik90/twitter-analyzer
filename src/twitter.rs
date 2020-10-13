@@ -1,10 +1,9 @@
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct TwitterAccount {
-  handle: String, // Includes "@"
-  category: String,
+  pub handle: String, // Includes "@"
+  pub category: String,
 }
 
-use crate::analysis;
 // Not used, but can be useful
 fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
   for tweet in &search_result.statuses {
@@ -13,38 +12,6 @@ fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
       tweet.user.as_ref().unwrap().screen_name,
       tweet.text
     );
-  }
-}
-
-/// Maximum for egg-mode
-const N_TWEETS_PER_PAGE: u32 = 100;
-
-/// account_handle includes the "@"
-pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
-  let response = egg_mode::search::search(account_handle.clone())
-    .result_type(egg_mode::search::ResultType::Recent)
-    .count(N_TWEETS_PER_PAGE)
-    .call(&token)
-    .await
-    .unwrap()
-    .response;
-
-  let analysis =
-    analysis::SearchAnalysis::new(account_handle.as_str(), chrono::Utc::now(), &response);
-  println!("{}", analysis.unwrap().summary());
-}
-
-/// Analyze multiple accounts as deserialized from configuration
-pub(crate) async fn analyze_accounts_from_config(token: egg_mode::Token, config: Config) {
-  // Map accounts to analyzation calls
-  let futures: Vec<_> = config
-    .accounts
-    .into_iter()
-    .map(|acc| analyze_account(&token, acc.handle))
-    .collect();
-
-  for f in futures {
-    f.await;
   }
 }
 

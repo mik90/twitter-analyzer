@@ -19,9 +19,9 @@
 
 
 #### Todo
-- Find what features are more common to one query vs another
-- Log search queries to check cumulative data
-- Separate analysis from printing
+- Add arg for cleaning storage
+- Store entire tweets instead of summaries?
+  - Have some way to verify any of my measurements are actually valid
 #### Storage
 - Store in actual db or just in json?
 - Json

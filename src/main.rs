@@ -4,8 +4,9 @@ mod test;
 mod twitter;
 
 extern crate clap;
+use analysis::{analyze_account, analyze_config};
 use clap::{App, Arg};
-use twitter::{analyze_account, analyze_accounts_from_config, auth, Config};
+use twitter::{auth, Config};
 
 #[tokio::main]
 async fn main() {
@@ -65,7 +66,7 @@ async fn main() {
         }
 
         let start = std::time::Instant::now();
-        analyze_accounts_from_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
+        analyze_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
         let end = std::time::Instant::now();
         let duration = end - start;
         println!(
