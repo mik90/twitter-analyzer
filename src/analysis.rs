@@ -20,6 +20,11 @@ use regex::RegexSet;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct Tweet {
+    pub text: String,
+    pub handle: String,
+}
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct SearchAnalysis {
@@ -27,6 +32,7 @@ pub struct SearchAnalysis {
     pub date_utc: chrono::DateTime<chrono::Utc>,
     pub word_frequency: BTreeMap<String, usize>,
     pub handle_patterns: BTreeMap<HandlePattern, usize>,
+    pub tweets: Vec<Tweet>,
 }
 
 const N_MOST_COMMON_WORDS: usize = 5;
@@ -71,14 +77,26 @@ pub(crate) async fn analyze_config(token: egg_mode::Token, config: crate::twitte
 impl SearchAnalysis {
     pub fn new(
         query: &str,
-        date: chrono::DateTime<chrono::Utc>,
+        date_utc: chrono::DateTime<chrono::Utc>,
         search: &egg_mode::search::SearchResult,
     ) -> Option<SearchAnalysis> {
+        let mut tweets = Vec::new();
+        for tweet in &search.statuses {
+            // TODO Clean this up, it's super weird
+            let temp = &*(tweet.user.as_ref().unwrap());
+            let handle = temp.screen_name.clone();
+            tweets.push(Tweet {
+                text: tweet.text.to_owned(),
+                handle,
+            })
+        }
+
         Some(SearchAnalysis {
             query: query.to_owned(),
-            date_utc: date,
+            date_utc,
             word_frequency: get_most_common_words(&search),
             handle_patterns: get_most_common_handle_patterns(&search),
+            tweets,
         })
     }
 

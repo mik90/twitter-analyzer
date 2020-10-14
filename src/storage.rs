@@ -22,7 +22,7 @@ pub fn store_with_location(item: &SearchAnalysis, base_dir: &Path) -> Result<(),
   }
   let serialized_item = serde_json::to_string(item)?;
   let mut file = std::fs::File::create(&storage_path)?;
-  file.write(serialized_item.as_bytes())?;
+  file.write_all(serialized_item.as_bytes())?;
   Ok(())
 }
 
