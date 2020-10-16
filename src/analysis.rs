@@ -103,18 +103,6 @@ impl SearchAnalysis {
     /// Saves to $PWD/<base_dir>/<handle>/<search-date>/analysis.json
     pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
         // ISO 8601 / RFC 3339 date & time format
-        /*
-        Why does this expect the *second* argument to be an Option???
-        let out: PathBuf = [
-            base_dir.to_str(),
-            self.query.as_str(),
-            &self.date_utc.format("%+").to_string(),
-            "analysis.json",
-        ]
-        .iter()
-        .collect();
-        out
-        */
         let mut path = PathBuf::from(base_dir);
         path.push(&self.query);
         path.push(&self.date_utc.format("%+").to_string());

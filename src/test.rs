@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 // It's test code, there's probably a better way to do this but im tired
 #[allow(dead_code)]
-pub const TEST_QUERY: &str = "twitter";
+pub const TEST_QUERY: &str = "@twitter";
 #[allow(dead_code)]
 pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analysis";
 

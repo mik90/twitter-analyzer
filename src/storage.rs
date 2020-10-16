@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-const DEFAULT_STORAGE_LOCATION: &str = "analysis";
+pub const DEFAULT_STORAGE_LOCATION: &str = "analysis";
 
 pub fn store(item: &SearchAnalysis) -> Result<(), std::io::Error> {
   store_with_location(item, &Path::new(DEFAULT_STORAGE_LOCATION))

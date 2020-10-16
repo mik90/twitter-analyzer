@@ -36,6 +36,11 @@ async fn main() {
                 .value_name("TOKEN_PATH")
                 .help("File containing the bearer token, do not include newlines in it"),
         )
+        .arg(
+            Arg::with_name("clean")
+                .long("clean")
+                .help("Clean analysis directory before searching"),
+        )
         .get_matches();
 
     let token_path = matches
@@ -46,6 +51,10 @@ async fn main() {
         std::process::exit(1);
     }
 
+    if matches.is_present("clean") {
+        std::fs::remove_dir_all(&storage::DEFAULT_STORAGE_LOCATION)
+            .expect("Could not clean out storage area!");
+    }
     if matches.is_present("account") {
         let account_handle = matches.value_of("account").unwrap();
 
