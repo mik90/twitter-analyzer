@@ -42,7 +42,7 @@ const N_MOST_HANDLE_PATTERNS: usize = 3;
 const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
-pub(crate) async fn analyze_account(token: &egg_mode::Token, account_handle: String) {
+pub(crate) async fn analyze_query(token: &egg_mode::Token, account_handle: String) {
     let response = egg_mode::search::search(account_handle.clone())
         .result_type(egg_mode::search::ResultType::Recent)
         .count(N_TWEETS_PER_PAGE)
@@ -66,7 +66,7 @@ pub(crate) async fn analyze_config(token: egg_mode::Token, config: crate::twitte
     let futures: Vec<_> = config
         .accounts
         .into_iter()
-        .map(|acc| analyze_account(&token, acc.handle))
+        .map(|acc| analyze_query(&token, acc.handle))
         .collect();
 
     for f in futures {
