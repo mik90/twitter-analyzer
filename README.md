@@ -19,9 +19,9 @@
 
 
 #### Todo
-- Add arg for cleaning storage
-- Store entire tweets instead of summaries?
-  - Have some way to verify any of my measurements are actually valid
+- Have some way to verify any of my measurements are actually valid
+- Search through already-stored queries
+- Separate queries and analyses
 #### Storage
 - Store in actual db or just in json?
 - Json

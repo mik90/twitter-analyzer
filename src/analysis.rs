@@ -16,15 +16,13 @@
 extern crate chrono;
 extern crate regex;
 use crate::storage;
+use crate::twitter;
+use crate::twitter::QueryResult;
 use regex::RegexSet;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-pub struct Tweet {
-    pub text: String,
-    pub handle: String,
-}
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct SearchAnalysis {
@@ -32,7 +30,7 @@ pub struct SearchAnalysis {
     pub date_utc: chrono::DateTime<chrono::Utc>,
     pub word_frequency: BTreeMap<String, usize>,
     pub handle_patterns: BTreeMap<HandlePattern, usize>,
-    pub tweets: Vec<Tweet>,
+    pub tweets: Vec<twitter::Tweet>,
 }
 
 const N_MOST_COMMON_WORDS: usize = 5;
@@ -42,22 +40,41 @@ const N_MOST_HANDLE_PATTERNS: usize = 3;
 const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
-pub(crate) async fn analyze_query(token: &egg_mode::Token, account_handle: String) {
-    let response = egg_mode::search::search(account_handle.clone())
-        .result_type(egg_mode::search::ResultType::Recent)
-        .count(N_TWEETS_PER_PAGE)
-        .call(&token)
-        .await
-        .unwrap()
-        .response;
+pub(crate) async fn analyze_query(token: &egg_mode::Token, query: String) {
+    let response = Arc::new(
+        egg_mode::search::search(query.clone())
+            .result_type(egg_mode::search::ResultType::Recent)
+            .count(N_TWEETS_PER_PAGE)
+            .call(&token)
+            .await
+            .unwrap()
+            .response,
+    );
 
-    let analysis =
-        SearchAnalysis::new(account_handle.as_str(), chrono::Utc::now(), &response).unwrap();
-    let status = storage::store(&analysis);
-    if status.is_err() {
-        eprintln!("Could not store analysis!");
-    }
-    println!("{}", analysis.summary());
+    let local_query = query.clone();
+    let local_response = Arc::clone(&response);
+    let analysis_task = tokio::spawn(async move {
+        let local_response = Arc::clone(&response);
+        let analysis =
+            SearchAnalysis::new(local_query.as_str(), chrono::Utc::now(), &local_response).unwrap();
+        if storage::store_analysis(&analysis).is_err() {
+            eprintln!("Could not store analysis!");
+        }
+        println!("{}", analysis.summary());
+    });
+
+    let local_query = query.clone();
+    let local_response = Arc::clone(&local_response);
+    let query_task = tokio::spawn(async move {
+        let query_result =
+            QueryResult::new(local_query.as_str(), chrono::Utc::now(), &local_response);
+        if storage::store_query(&query_result).is_err() {
+            eprintln!("Could not store query!");
+        }
+    });
+
+    analysis_task.await.unwrap();
+    query_task.await.unwrap();
 }
 
 /// Analyze multiple accounts as deserialized from configuration
@@ -80,23 +97,12 @@ impl SearchAnalysis {
         date_utc: chrono::DateTime<chrono::Utc>,
         search: &egg_mode::search::SearchResult,
     ) -> Option<SearchAnalysis> {
-        let mut tweets = Vec::new();
-        for tweet in &search.statuses {
-            // TODO Clean this up, it's super weird
-            let temp = &*(tweet.user.as_ref().unwrap());
-            let handle = temp.screen_name.clone();
-            tweets.push(Tweet {
-                text: tweet.text.to_owned(),
-                handle,
-            })
-        }
-
         Some(SearchAnalysis {
             query: query.to_owned(),
             date_utc,
             word_frequency: get_most_common_words(&search),
             handle_patterns: get_most_common_handle_patterns(&search),
-            tweets,
+            tweets: twitter::search_to_tweet_vec(&search),
         })
     }
 

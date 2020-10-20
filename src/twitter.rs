@@ -1,7 +1,59 @@
+use std::path::{Path, PathBuf};
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct Tweet {
+  pub text: String,
+  pub handle: String,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct TwitterAccount {
   pub handle: String, // Includes "@"
   pub category: String,
+}
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct QueryResult {
+  pub query: String,
+  pub date_utc: chrono::DateTime<chrono::Utc>,
+  pub tweets: Vec<Tweet>,
+}
+
+/// Parse an egg_mode::search::SearchResult into a serializable vector of tweets
+pub fn search_to_tweet_vec(search: &egg_mode::search::SearchResult) -> Vec<Tweet> {
+  let mut tweets = Vec::new();
+  for tweet in &search.statuses {
+    // TODO Clean this up, it's super weird
+    let temp = &*(tweet.user.as_ref().unwrap());
+    let handle = temp.screen_name.clone();
+    tweets.push(Tweet {
+      text: tweet.text.to_owned(),
+      handle,
+    })
+  }
+  tweets
+}
+
+impl QueryResult {
+  pub fn new(
+    query: &str,
+    date_utc: chrono::DateTime<chrono::Utc>,
+    search: &egg_mode::search::SearchResult,
+  ) -> QueryResult {
+    QueryResult {
+      query: query.to_string(),
+      date_utc,
+      tweets: search_to_tweet_vec(&search),
+    }
+  }
+  /// Saves to $PWD/<base_dir>/<handle>/<search-date>/query-result.json
+  pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
+    // ISO 8601 / RFC 3339 date & time format
+    let mut path = PathBuf::from(base_dir);
+    path.push(&self.query);
+    path.push(&self.date_utc.format("%+").to_string());
+    path.push("query-result.json");
+    path
+  }
 }
 
 // Not used, but can be useful

@@ -45,7 +45,7 @@ async fn main() {
 
     match matches.subcommand() {
         ("clean", _) => {
-            std::fs::remove_dir_all(&storage::DEFAULT_STORAGE_LOCATION)
+            std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
                 .expect("Could not clean out storage area!");
         }
         ("query", Some(matches)) => {
