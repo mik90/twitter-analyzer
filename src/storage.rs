@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-pub const DEFAULT_ANALYSIS_DIR: &str = "analysis";
+pub const DEFAULT_ANALYSIS_DIR: &str = "analyses";
 pub const DEFAULT_QUERY_RESULT_DIR: &str = "queries";
 
 pub fn store_analysis(item: &SearchAnalysis) -> Result<(), std::io::Error> {
@@ -53,7 +53,7 @@ fn store_query_with_location(
 
 #[tokio::test]
 async fn test_analysis_storage() {
-  crate::test::setup_test_storage();
+  crate::test::setup_test_dir(Path::new(crate::test::TEST_ANALYSIS_STORAGE_LOCATION));
   let response = crate::test::get_test_response().await;
   let analysis = SearchAnalysis::new(
     crate::test::TEST_QUERY,
@@ -113,7 +113,7 @@ async fn test_analysis_storage() {
 
 #[tokio::test]
 async fn test_query_storage() {
-  crate::test::setup_test_storage();
+  crate::test::setup_test_dir(Path::new(crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION));
   let response = crate::test::get_test_response().await;
   let query = QueryResult::new(
     crate::test::TEST_QUERY,

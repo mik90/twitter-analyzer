@@ -236,8 +236,8 @@ async fn test_most_common_words() {
 #[tokio::test]
 async fn test_handle_patterns() {
     let response = crate::test::get_test_response().await.response;
-    let words = get_most_common_handle_patterns(&response);
-    assert!(!words.is_empty());
+    let patterns = get_most_common_handle_patterns(&response);
+    assert!(!patterns.is_empty());
 }
 
 #[tokio::test]
