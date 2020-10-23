@@ -44,10 +44,7 @@ async fn main() {
         .get_matches();
 
     match matches.subcommand() {
-        ("clean", _) => {
-            std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
-                .expect("Could not clean out storage area!");
-        }
+        ("clean", _) => storage::clean_storage_area(),
         ("query", Some(matches)) => {
             let token_path = matches
                 .value_of("bearer_token")

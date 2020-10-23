@@ -5,8 +5,9 @@ use std::path::Path;
 #[allow(dead_code)]
 pub const TEST_QUERY: &str = "@twitter";
 #[allow(dead_code)]
-pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analysis";
-pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_query";
+pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analyses";
+#[allow(dead_code)]
+pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
 
 #[allow(dead_code)]
 pub(crate) async fn get_test_response() -> egg_mode::Response<egg_mode::search::SearchResult> {

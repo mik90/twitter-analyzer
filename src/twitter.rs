@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 pub struct Tweet {
   pub text: String,
   pub handle: String,
+  pub date_utc: chrono::DateTime<chrono::Utc>,
+  pub retweet_count: i32,
+  pub favorite_count: i32,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -11,6 +14,7 @@ pub struct TwitterAccount {
   pub handle: String, // Includes "@"
   pub category: String,
 }
+
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct QueryResult {
   pub query: String,
@@ -26,8 +30,11 @@ pub fn search_to_tweet_vec(search: &egg_mode::search::SearchResult) -> Vec<Tweet
     let temp = &*(tweet.user.as_ref().unwrap());
     let handle = temp.screen_name.clone();
     tweets.push(Tweet {
-      text: tweet.text.to_owned(),
       handle,
+      text: tweet.text.to_owned(),
+      date_utc: tweet.created_at,
+      retweet_count: tweet.retweet_count,
+      favorite_count: tweet.favorite_count,
     })
   }
   tweets

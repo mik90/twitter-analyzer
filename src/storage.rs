@@ -40,7 +40,7 @@ fn store_query_with_location(
   base_dir: &Path,
 ) -> Result<(), std::io::Error> {
   let storage_path = query_result.storage_location(base_dir);
-  println!("Storing analysis as {:?}", &storage_path);
+  println!("Storing query result as {:?}", &storage_path);
   let parent_dir = storage_path.parent().unwrap();
   if fs::metadata(&parent_dir).is_err() {
     fs::create_dir_all(&parent_dir).expect("Could not create directory despite it not being there");
@@ -49,6 +49,17 @@ fn store_query_with_location(
   let mut file = std::fs::File::create(&storage_path)?;
   file.write_all(serialized_item.as_bytes())?;
   Ok(())
+}
+
+pub fn clean_storage_area() {
+  if Path::new(&DEFAULT_ANALYSIS_DIR).exists() {
+    std::fs::remove_dir_all(&DEFAULT_ANALYSIS_DIR)
+      .expect("Could not clean out analysis storage area!");
+  }
+  if Path::new(&DEFAULT_QUERY_RESULT_DIR).exists() {
+    std::fs::remove_dir_all(&DEFAULT_QUERY_RESULT_DIR)
+      .expect("Could not clean out query storage area!");
+  }
 }
 
 #[tokio::test]
