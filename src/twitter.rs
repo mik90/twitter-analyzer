@@ -1,4 +1,6 @@
+use crate::storage;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct Tweet {
@@ -20,6 +22,39 @@ pub struct QueryResult {
   pub query: String,
   pub date_utc: chrono::DateTime<chrono::Utc>,
   pub tweets: Vec<Tweet>,
+}
+
+/// Maximum for egg-mode
+const N_TWEETS_PER_PAGE: u32 = 100;
+
+/// account_handle includes the "@"
+pub(crate) async fn run_query(token: &egg_mode::Token, query: String) {
+  let response = egg_mode::search::search(query.clone())
+    .result_type(egg_mode::search::ResultType::Recent)
+    .count(N_TWEETS_PER_PAGE)
+    .call(&token)
+    .await
+    .unwrap()
+    .response;
+
+  let query_result = QueryResult::new(query.as_str(), chrono::Utc::now(), &response);
+  if storage::store_query(&query_result).is_err() {
+    eprintln!("Could not store query!");
+  }
+}
+
+/// Analyze multiple accounts as deserialized from configuration
+pub(crate) async fn run_query_from_config(token: egg_mode::Token, config: crate::twitter::Config) {
+  // Map accounts to analyzation calls
+  let futures: Vec<_> = config
+    .accounts
+    .into_iter()
+    .map(|acc| run_query(&token, acc.handle))
+    .collect();
+
+  for f in futures {
+    f.await;
+  }
 }
 
 /// Parse an egg_mode::search::SearchResult into a serializable vector of tweets
@@ -58,7 +93,7 @@ impl QueryResult {
     let mut path = PathBuf::from(base_dir);
     path.push(&self.query);
     path.push(&self.date_utc.format("%+").to_string());
-    path.push("query-result.json");
+    path.push(Path::new(storage::QUERY_RESULT_FILENAME));
     path
   }
 }

@@ -4,9 +4,8 @@ mod test;
 mod twitter;
 
 extern crate clap;
-use analysis::{analyze_config, analyze_query};
 use clap::{App, Arg, SubCommand};
-use twitter::{auth, Config};
+use twitter::*;
 
 #[tokio::main]
 async fn main() {
@@ -15,6 +14,15 @@ async fn main() {
         .version("0.1")
         .author("Mike K. <kaliman.mike@gmail.com>")
         .about("Searches for analysis in twitter mentions")
+        .subcommand(
+            SubCommand::with_name("analyze")
+                .about("Search twitter using a query and print analysis")
+                .arg(
+                    Arg::with_name("analyze_command")
+                        .value_name("ANALYZE_COMMAND")
+                        .help("Command for analyzing twitter queries"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("query")
                 .about("Search twitter using a query and print analysis")
@@ -62,7 +70,7 @@ async fn main() {
                 println!("Searching for {:?}", &search_query);
 
                 let start = std::time::Instant::now();
-                analyze_query(&maybe_token.unwrap(), search_query.to_owned()).await;
+                run_query(&maybe_token.unwrap(), search_query.to_owned()).await;
                 println!(
                     "Time to analyze {}: {} milliseconds",
                     search_query,
@@ -77,11 +85,21 @@ async fn main() {
                 }
                 println!("Analyzing queries from {}", config_path);
                 let start = std::time::Instant::now();
-                analyze_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
+                run_query_from_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
                 println!(
                     "Time to analyze accounts from configuration: {} milliseconds",
                     (std::time::Instant::now() - start).as_millis()
                 )
+            }
+        }
+        ("analyze", Some(matches)) => {
+            let maybe_command = matches.value_of("analyze_command");
+            if maybe_command.is_some() {
+                eprintln!("Specific commands not implemented yet!");
+                std::process::exit(1);
+            } else {
+                // Run analysis on available queries
+                println!("Running analysis on available queries...");
             }
         }
         (_, _) => {

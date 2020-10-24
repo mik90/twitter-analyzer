@@ -21,7 +21,6 @@ use crate::twitter::QueryResult;
 use regex::RegexSet;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -36,74 +35,25 @@ pub struct SearchAnalysis {
 const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
-/// Maximum for egg-mode
-const N_TWEETS_PER_PAGE: u32 = 100;
-
-/// account_handle includes the "@"
-pub(crate) async fn analyze_query(token: &egg_mode::Token, query: String) {
-    let response = Arc::new(
-        egg_mode::search::search(query.clone())
-            .result_type(egg_mode::search::ResultType::Recent)
-            .count(N_TWEETS_PER_PAGE)
-            .call(&token)
-            .await
-            .unwrap()
-            .response,
-    );
-
-    let local_query = query.clone();
-    let local_response = Arc::clone(&response);
-    let analysis_task = tokio::spawn(async move {
-        let local_response = Arc::clone(&response);
-        let analysis =
-            SearchAnalysis::new(local_query.as_str(), chrono::Utc::now(), &local_response).unwrap();
-        if storage::store_analysis(&analysis).is_err() {
-            eprintln!("Could not store analysis!");
-        }
-        println!("{}", analysis.summary());
-    });
-
-    let local_query = query.clone();
-    let local_response = Arc::clone(&local_response);
-    let query_task = tokio::spawn(async move {
-        let query_result =
-            QueryResult::new(local_query.as_str(), chrono::Utc::now(), &local_response);
-        if storage::store_query(&query_result).is_err() {
-            eprintln!("Could not store query!");
-        }
-    });
-
-    analysis_task.await.unwrap();
-    query_task.await.unwrap();
-}
-
-/// Analyze multiple accounts as deserialized from configuration
-pub(crate) async fn analyze_config(token: egg_mode::Token, config: crate::twitter::Config) {
-    // Map accounts to analyzation calls
-    let futures: Vec<_> = config
-        .accounts
-        .into_iter()
-        .map(|acc| analyze_query(&token, acc.handle))
-        .collect();
-
-    for f in futures {
-        f.await;
-    }
-}
-
 impl SearchAnalysis {
-    pub fn new(
-        query: &str,
-        date_utc: chrono::DateTime<chrono::Utc>,
-        search: &egg_mode::search::SearchResult,
-    ) -> Option<SearchAnalysis> {
+    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> Option<SearchAnalysis> {
+        let queries = storage::retrieve_queries(base_dir, queries);
+        // TODO Run analyses on the queries
         Some(SearchAnalysis {
-            query: query.to_owned(),
-            date_utc,
             word_frequency: get_most_common_words(&search),
             handle_patterns: get_most_common_handle_patterns(&search),
             tweets: twitter::search_to_tweet_vec(&search),
         })
+    }
+
+    pub fn new_empty() -> SearchAnalysis {
+        SearchAnalysis {
+            query: "".to_string(),
+            word_frequency: BTreeMap::new(),
+            date_utc: chrono::Utc::now(),
+            handle_patterns: BTreeMap::new(),
+            tweets: Vec::new(),
+        }
     }
 
     /// Saves to $PWD/<base_dir>/<handle>/<search-date>/analysis.json
@@ -141,6 +91,15 @@ impl SearchAnalysis {
 
         summary
     }
+}
+
+pub(crate) async fn run_analysis() {
+    // TODO run from dir
+    let analysis = SearchAnalysis::new(query.as_str(), chrono::Utc::now(), &response).unwrap();
+    if storage::store_analysis(&analysis).is_err() {
+        eprintln!("Could not store analysis!");
+    }
+    println!("{}", analysis.summary());
 }
 
 /// A category of handle format with their corresponding regex
@@ -186,23 +145,23 @@ impl HandlePattern {
 }
 
 /// Finds the most common words in a given search
-pub(crate) fn get_most_common_words(
-    search_result: &egg_mode::search::SearchResult,
-) -> BTreeMap<String, usize> {
+pub(crate) fn get_most_common_words(query_results: Vec<QueryResult>) -> BTreeMap<String, usize> {
     let mut map_word_to_count = BTreeMap::new();
 
-    for tweet in &search_result.statuses {
-        // Normalize text (somewhat)
-        let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
+    for query in query_results {
+        for tweet in query.tweets {
+            // Normalize text (somewhat)
+            let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
 
-        // Analyze each word
-        for word in words {
-            let normalized_word = word
-                .to_string()
-                .to_lowercase()
-                .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
-            // Insert count of 0 if the word was not seen before
-            *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
+            // Analyze each word
+            for word in words {
+                let normalized_word = word
+                    .to_string()
+                    .to_lowercase()
+                    .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
+                // Insert count of 0 if the word was not seen before
+                *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
+            }
         }
     }
 
@@ -211,32 +170,41 @@ pub(crate) fn get_most_common_words(
 
 /// Finds the most common handle patterns in a given search
 pub(crate) fn get_most_common_handle_patterns(
-    search_result: &egg_mode::search::SearchResult,
+    query_results: Vec<QueryResult>,
 ) -> BTreeMap<HandlePattern, usize> {
     let mut map_pattern_to_count = BTreeMap::new();
 
-    for tweet in &search_result.statuses {
-        let handle = &tweet.user.as_ref().unwrap().screen_name;
-        let pattern = HandlePattern::from(handle.as_str());
+    for query in query_results {
+        for tweet in query.tweets {
+            let handle = tweet.handle;
+            let pattern = HandlePattern::from(handle.as_str());
 
-        // Insert count of 0 if the pattern was not seen before
-        *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
+            // Insert count of 0 if the pattern was not seen before
+            *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
+        }
     }
-
     map_pattern_to_count
 }
 
 #[tokio::test]
 async fn test_most_common_words() {
-    let response = crate::test::get_test_response().await.response;
-    let words = get_most_common_words(&response);
+    let queries = storage::retrieve_queries(
+        &Path::new(crate::test::TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION),
+        Vec::new(),
+    )
+    .unwrap();
+    let words = get_most_common_words(queries);
     assert!(!words.is_empty());
 }
 
 #[tokio::test]
 async fn test_handle_patterns() {
-    let response = crate::test::get_test_response().await.response;
-    let patterns = get_most_common_handle_patterns(&response);
+    let queries = storage::retrieve_queries(
+        &Path::new(crate::test::TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION),
+        Vec::new(),
+    )
+    .unwrap();
+    let patterns = get_most_common_handle_patterns(queries);
     assert!(!patterns.is_empty());
 }
 

@@ -8,13 +8,15 @@ pub const TEST_QUERY: &str = "@twitter";
 pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analyses";
 #[allow(dead_code)]
 pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
+#[allow(dead_code)]
+pub const TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION: &str = "test_saved_queries";
 
 #[allow(dead_code)]
 pub(crate) async fn get_test_response() -> egg_mode::Response<egg_mode::search::SearchResult> {
   let token = crate::auth::get_token(std::path::Path::new("auth/bearer.token")).unwrap();
   let res = egg_mode::search::search(TEST_QUERY)
     .result_type(egg_mode::search::ResultType::Recent)
-    .count(1)
+    .count(5)
     .call(&token)
     .await;
   res.expect("Could not get response!")
