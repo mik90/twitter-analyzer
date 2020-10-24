@@ -9,17 +9,16 @@ pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analyses";
 #[allow(dead_code)]
 pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
 #[allow(dead_code)]
-pub const TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION: &str = "test_saved_queries";
+pub const TEST_QUERY_LOCATION: &str = "test_resources/query-result.json";
 
 #[allow(dead_code)]
-pub(crate) async fn get_test_response() -> egg_mode::Response<egg_mode::search::SearchResult> {
-  let token = crate::auth::get_token(std::path::Path::new("auth/bearer.token")).unwrap();
-  let res = egg_mode::search::search(TEST_QUERY)
-    .result_type(egg_mode::search::ResultType::Recent)
-    .count(5)
-    .call(&token)
-    .await;
-  res.expect("Could not get response!")
+pub(crate) fn get_test_query_result() -> crate::twitter::QueryResult {
+  // It's a query result so deserialize it!
+  let serialized =
+    std::fs::read(&Path::new(TEST_QUERY_LOCATION)).expect("Could not get test query result");
+  let deserialized_result: crate::twitter::QueryResult =
+    serde_json::from_slice(&serialized).expect("Could deserialize test query result");
+  deserialized_result
 }
 
 #[allow(dead_code)]

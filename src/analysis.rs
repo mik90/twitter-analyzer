@@ -25,34 +25,46 @@ use std::path::{Path, PathBuf};
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct SearchAnalysis {
-    pub query: String,
+    pub queries: Vec<String>,
     pub date_utc: chrono::DateTime<chrono::Utc>,
     pub word_frequency: BTreeMap<String, usize>,
     pub handle_patterns: BTreeMap<HandlePattern, usize>,
-    pub tweets: Vec<twitter::Tweet>,
 }
 
 const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
 impl SearchAnalysis {
-    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> Option<SearchAnalysis> {
-        let queries = storage::retrieve_queries(base_dir, queries);
-        // TODO Run analyses on the queries
+    pub fn from_query_result(result: &QueryResult) -> Option<SearchAnalysis> {
+        let result_vec: Vec<QueryResult> = vec![result.clone()];
         Some(SearchAnalysis {
-            word_frequency: get_most_common_words(&search),
-            handle_patterns: get_most_common_handle_patterns(&search),
-            tweets: twitter::search_to_tweet_vec(&search),
+            word_frequency: get_most_common_words(&result_vec),
+            handle_patterns: get_most_common_handle_patterns(&result_vec),
+            date_utc: chrono::Utc::now(),
+            queries: vec![result.query.clone()],
+        })
+    }
+    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> Option<SearchAnalysis> {
+        let maybe_query_results = storage::retrieve_queries(base_dir, &queries);
+        if maybe_query_results.is_err() {
+            eprintln!("Could not retrieve queries {:?}", &queries);
+            return None;
+        }
+        let query_results = maybe_query_results.unwrap();
+        Some(SearchAnalysis {
+            word_frequency: get_most_common_words(&query_results),
+            handle_patterns: get_most_common_handle_patterns(&query_results),
+            date_utc: chrono::Utc::now(),
+            queries: queries.iter().map(|x| x.to_string()).collect(),
         })
     }
 
-    pub fn new_empty() -> SearchAnalysis {
+    pub fn create_empty() -> SearchAnalysis {
         SearchAnalysis {
-            query: "".to_string(),
+            queries: Vec::new(),
             word_frequency: BTreeMap::new(),
             date_utc: chrono::Utc::now(),
             handle_patterns: BTreeMap::new(),
-            tweets: Vec::new(),
         }
     }
 
@@ -60,7 +72,6 @@ impl SearchAnalysis {
     pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
         // ISO 8601 / RFC 3339 date & time format
         let mut path = PathBuf::from(base_dir);
-        path.push(&self.query);
         path.push(&self.date_utc.format("%+").to_string());
         path.push("analysis.json");
         path
@@ -77,7 +88,7 @@ impl SearchAnalysis {
     pub fn summary(&self) -> String {
         let mut summary = String::from("------------------------------------\n");
 
-        summary.push_str(format!("Most common words for {}:\n", self.query).as_str());
+        summary.push_str(format!("Most common words for {:?}:\n", self.queries).as_str());
         for word in self.word_frequency.iter().take(N_MOST_COMMON_WORDS) {
             summary.push_str(format!("{} was seen {} times\n", word.0, word.1).as_str());
         }
@@ -93,9 +104,11 @@ impl SearchAnalysis {
     }
 }
 
-pub(crate) async fn run_analysis() {
-    // TODO run from dir
-    let analysis = SearchAnalysis::new(query.as_str(), chrono::Utc::now(), &response).unwrap();
+pub(crate) async fn run_analysis(queries: Vec<&str>) {
+    // TODO run analysis from dir
+    let analysis =
+        SearchAnalysis::from_stored_queries(&Path::new(storage::DEFAULT_QUERY_RESULT_DIR), queries)
+            .expect("Could not run analysis!");
     if storage::store_analysis(&analysis).is_err() {
         eprintln!("Could not store analysis!");
     }
@@ -145,11 +158,11 @@ impl HandlePattern {
 }
 
 /// Finds the most common words in a given search
-pub(crate) fn get_most_common_words(query_results: Vec<QueryResult>) -> BTreeMap<String, usize> {
+pub(crate) fn get_most_common_words(query_results: &Vec<QueryResult>) -> BTreeMap<String, usize> {
     let mut map_word_to_count = BTreeMap::new();
 
     for query in query_results {
-        for tweet in query.tweets {
+        for tweet in &query.tweets {
             // Normalize text (somewhat)
             let words = tweet.text.split_whitespace().collect::<Vec<&str>>();
 
@@ -170,13 +183,13 @@ pub(crate) fn get_most_common_words(query_results: Vec<QueryResult>) -> BTreeMap
 
 /// Finds the most common handle patterns in a given search
 pub(crate) fn get_most_common_handle_patterns(
-    query_results: Vec<QueryResult>,
+    query_results: &Vec<QueryResult>,
 ) -> BTreeMap<HandlePattern, usize> {
     let mut map_pattern_to_count = BTreeMap::new();
 
     for query in query_results {
-        for tweet in query.tweets {
-            let handle = tweet.handle;
+        for tweet in &query.tweets {
+            let handle = &tweet.handle;
             let pattern = HandlePattern::from(handle.as_str());
 
             // Insert count of 0 if the pattern was not seen before
@@ -188,23 +201,15 @@ pub(crate) fn get_most_common_handle_patterns(
 
 #[tokio::test]
 async fn test_most_common_words() {
-    let queries = storage::retrieve_queries(
-        &Path::new(crate::test::TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION),
-        Vec::new(),
-    )
-    .unwrap();
-    let words = get_most_common_words(queries);
+    let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+    let words = get_most_common_words(&queries);
     assert!(!words.is_empty());
 }
 
 #[tokio::test]
 async fn test_handle_patterns() {
-    let queries = storage::retrieve_queries(
-        &Path::new(crate::test::TEST_SAVED_QUERY_RESULT_STORAGE_LOCATION),
-        Vec::new(),
-    )
-    .unwrap();
-    let patterns = get_most_common_handle_patterns(queries);
+    let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+    let patterns = get_most_common_handle_patterns(&queries);
     assert!(!patterns.is_empty());
 }
 

@@ -44,7 +44,7 @@ fn retrieve_results_from_query(query_dir: &Path) -> io::Result<Vec<QueryResult>>
 }
 
 /// Retrieve specific queries, (or any) from a given directory
-pub fn retrieve_queries(base_dir: &Path, queries: Vec<&str>) -> io::Result<Vec<QueryResult>> {
+pub fn retrieve_queries(base_dir: &Path, queries: &Vec<&str>) -> io::Result<Vec<QueryResult>> {
   if base_dir.is_dir() {
     // Recurse down
     let mut results = Vec::new();
@@ -121,14 +121,8 @@ pub fn clean_storage_area() {
 
 #[tokio::test]
 async fn test_analysis_storage() {
-  crate::test::setup_test_dir(Path::new(crate::test::TEST_ANALYSIS_STORAGE_LOCATION));
-  let response = crate::test::get_test_response().await;
-  let analysis = SearchAnalysis::new(
-    crate::test::TEST_QUERY,
-    crate::test::get_test_date(),
-    &response,
-  )
-  .unwrap();
+  crate::test::setup_test_dir(&Path::new(crate::test::TEST_ANALYSIS_STORAGE_LOCATION));
+  let analysis = SearchAnalysis::create_empty();
 
   store_analysis_with_location(
     &analysis,
@@ -181,13 +175,8 @@ async fn test_analysis_storage() {
 
 #[tokio::test]
 async fn test_query_storage() {
-  crate::test::setup_test_dir(Path::new(crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION));
-  let response = crate::test::get_test_response().await;
-  let query = QueryResult::new(
-    crate::test::TEST_QUERY,
-    crate::test::get_test_date(),
-    &response,
-  );
+  crate::test::setup_test_dir(&Path::new(crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION));
+  let query = QueryResult::create_empty();
 
   store_query_with_location(
     &query,
