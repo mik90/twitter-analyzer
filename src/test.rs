@@ -1,5 +1,5 @@
-use std::fs;
-use std::path::Path;
+use crate::twitter;
+use std::{fs, path::Path};
 
 // It's test code, there's probably a better way to do this but im tired
 #[allow(dead_code)]
@@ -12,11 +12,11 @@ pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
 pub const TEST_QUERY_LOCATION: &str = "test_resources/query-result.json";
 
 #[allow(dead_code)]
-pub(crate) fn get_test_query_result() -> crate::twitter::QueryResult {
+pub(crate) fn get_test_query_result() -> twitter::QueryResult {
   // It's a query result so deserialize it!
   let serialized =
     std::fs::read(&Path::new(TEST_QUERY_LOCATION)).expect("Could not get test query result");
-  let deserialized_result: crate::twitter::QueryResult =
+  let deserialized_result: twitter::QueryResult =
     serde_json::from_slice(&serialized).expect("Could deserialize test query result");
   deserialized_result
 }

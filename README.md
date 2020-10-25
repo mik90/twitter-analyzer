@@ -1,28 +1,29 @@
 # twitter-analyzer
 
 ## How-to
-- Analyze a twitter handle with `cargo run --release -- -a @twitter`
-- Analyze accounts from `conf/accounts.json` with just `cargo run --release`
+### Queries
+- Run a query for `@twitter` with `cargo run --release -- query @twitter`
+- Run query on accounts from `conf/accounts.json` with `cargo run --release query`
+### Analysis
+- Analyze all stored queries with `cargo run --release -- analyze`
 
-
-### What it does
+## What it does
 - Runs searches for the mentioned username(s) and then figures out
   - Most common words  
   - Most twitter handle pattern (e.g. CamelCase or namewithnumbers1234)
 
 #### conf/
-- accounts.json
-    -Stores accounts whose replies will be analyzed, they can also be the start of a search for networks of accounts.
+- accounts.json: List of accounts to search (if not supplied on command line)
 
 #### auth/
 - Twitter API keys and tokens. Use your own bearer token.
 
+#### Storage
+- Stores queries and analyses in json with serde_json
+- Analyses are stored as `analyses/\<handle\>/\<search_date\>/analysis.json`
+- Queries are stored as `queries/\<handle\>/\<search_date\>/query-result.json`
+
 
 #### Todo
 - Have some way to verify any of my measurements are actually valid
-- Search through already-stored queries
-- Separate queries and analyses
-#### Storage
-- Store in actual db or just in json?
-- Json
-  - ./analysis/\<handle\>/\<search_date\>/analysis.json
+- Strip symbols and spaces when finding most common words

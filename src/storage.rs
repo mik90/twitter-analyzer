@@ -1,4 +1,8 @@
-use crate::{analysis::SearchAnalysis, twitter::QueryResult};
+use crate::{
+  analysis::SearchAnalysis,
+  test::{self, setup_test_dir},
+  twitter::QueryResult,
+};
 use std::{
   fs, io,
   io::{Error, ErrorKind, Write},
@@ -128,8 +132,8 @@ fn store_query_with_location(
 
 #[tokio::test]
 async fn test_analysis_storage() {
-  let storage_dir = Path::new(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION);
-  crate::test::setup_test_dir(&storage_dir);
+  let storage_dir = Path::new(&test::TEST_ANALYSIS_STORAGE_LOCATION);
+  setup_test_dir(&storage_dir);
   let analysis = SearchAnalysis::create_empty();
 
   store_analysis_with_location(&analysis, &storage_dir).expect("Could not store analysis!");
@@ -139,8 +143,8 @@ async fn test_analysis_storage() {
 
 #[tokio::test]
 async fn test_query_storage() {
-  let storage_dir = Path::new(&crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION);
-  crate::test::setup_test_dir(&storage_dir);
+  let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
+  setup_test_dir(&storage_dir);
   let query = QueryResult::create_empty();
 
   store_query_with_location(&query, &storage_dir).expect("Could not store query!");
