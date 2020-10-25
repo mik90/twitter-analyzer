@@ -128,10 +128,10 @@ fn store_query_with_location(
 
 #[tokio::test]
 async fn test_analysis_storage() {
-  crate::test::setup_test_dir(&Path::new(crate::test::TEST_ANALYSIS_STORAGE_LOCATION));
+  let storage_dir = Path::new(&crate::test::TEST_ANALYSIS_STORAGE_LOCATION);
+  crate::test::setup_test_dir(&storage_dir);
   let analysis = SearchAnalysis::create_empty();
 
-  let storage_dir = Path::new(&crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION);
   store_analysis_with_location(&analysis, &storage_dir).expect("Could not store analysis!");
 
   assert!(storage_dir.exists());
@@ -139,10 +139,10 @@ async fn test_analysis_storage() {
 
 #[tokio::test]
 async fn test_query_storage() {
-  crate::test::setup_test_dir(&Path::new(crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION));
+  let storage_dir = Path::new(&crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION);
+  crate::test::setup_test_dir(&storage_dir);
   let query = QueryResult::create_empty();
 
-  let storage_dir = Path::new(&crate::test::TEST_QUERY_RESULT_STORAGE_LOCATION);
   store_query_with_location(&query, &storage_dir).expect("Could not store query!");
 
   assert!(storage_dir.exists());
