@@ -87,6 +87,7 @@ impl QueryResult {
     }
   }
 
+  #[allow(dead_code)]
   pub fn create_empty() -> QueryResult {
     QueryResult {
       query: "".to_string(),

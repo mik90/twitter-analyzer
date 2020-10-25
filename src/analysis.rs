@@ -16,10 +16,10 @@
 extern crate chrono;
 extern crate regex;
 use crate::storage;
-use crate::twitter;
 use crate::twitter::QueryResult;
 use regex::RegexSet;
 use std::collections::BTreeMap;
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// Result of examining account
@@ -35,6 +35,7 @@ const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
 impl SearchAnalysis {
+    #[allow(dead_code)]
     pub fn from_query_result(result: &QueryResult) -> Option<SearchAnalysis> {
         let result_vec: Vec<QueryResult> = vec![result.clone()];
         Some(SearchAnalysis {
@@ -44,21 +45,17 @@ impl SearchAnalysis {
             queries: vec![result.query.clone()],
         })
     }
-    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> Option<SearchAnalysis> {
-        let maybe_query_results = storage::retrieve_queries(base_dir, &queries);
-        if maybe_query_results.is_err() {
-            eprintln!("Could not retrieve queries {:?}", &queries);
-            return None;
-        }
-        let query_results = maybe_query_results.unwrap();
-        Some(SearchAnalysis {
+    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> io::Result<SearchAnalysis> {
+        let query_results = storage::retrieve_queries(base_dir, &queries)?;
+        Ok(SearchAnalysis {
             word_frequency: get_most_common_words(&query_results),
             handle_patterns: get_most_common_handle_patterns(&query_results),
             date_utc: chrono::Utc::now(),
-            queries: queries.iter().map(|x| x.to_string()).collect(),
+            queries: query_results.iter().map(|x| x.query.to_string()).collect(),
         })
     }
 
+    #[allow(dead_code)]
     pub fn create_empty() -> SearchAnalysis {
         SearchAnalysis {
             queries: Vec::new(),
@@ -77,18 +74,11 @@ impl SearchAnalysis {
         path
     }
 
-    fn _get_unique_words_seen(&self) -> usize {
-        self.word_frequency.len()
-    }
-
-    fn _get_handle_patterns_seen(&self) -> usize {
-        self.handle_patterns.len()
-    }
-
     pub fn summary(&self) -> String {
         let mut summary = String::from("------------------------------------\n");
 
-        summary.push_str(format!("Most common words for {:?}:\n", self.queries).as_str());
+        summary.push_str(format!("Most common words for queries: {:?}\n", self.queries).as_str());
+
         for word in self.word_frequency.iter().take(N_MOST_COMMON_WORDS) {
             summary.push_str(format!("{} was seen {} times\n", word.0, word.1).as_str());
         }
@@ -104,15 +94,15 @@ impl SearchAnalysis {
     }
 }
 
-pub(crate) async fn run_analysis(queries: Vec<&str>) {
+pub(crate) async fn run_analysis(queries: Vec<&str>) -> io::Result<()> {
     // TODO run analysis from dir
-    let analysis =
-        SearchAnalysis::from_stored_queries(&Path::new(storage::DEFAULT_QUERY_RESULT_DIR), queries)
-            .expect("Could not run analysis!");
-    if storage::store_analysis(&analysis).is_err() {
-        eprintln!("Could not store analysis!");
-    }
+    let analysis = SearchAnalysis::from_stored_queries(
+        &Path::new(storage::DEFAULT_QUERY_RESULT_DIR),
+        queries,
+    )?;
+    storage::store_analysis(&analysis)?;
     println!("{}", analysis.summary());
+    Ok(())
 }
 
 /// A category of handle format with their corresponding regex

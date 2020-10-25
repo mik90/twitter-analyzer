@@ -4,7 +4,10 @@ mod test;
 mod twitter;
 
 extern crate clap;
+use analysis::*;
 use clap::{App, Arg, SubCommand};
+use std::path::Path;
+use storage::DEFAULT_QUERY_RESULT_DIR;
 use twitter::*;
 
 #[tokio::main]
@@ -47,12 +50,45 @@ async fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("clean").about("Clean analysis directory before searching"),
+            SubCommand::with_name("clean")
+                .about("Clean analysis directory before searching")
+                .arg(
+                    Arg::with_name("queries")
+                        .short("q")
+                        .long("queries")
+                        .help("Delete all queries"),
+                )
+                .arg(
+                    Arg::with_name("analyses")
+                        .short("a")
+                        .long("analyses")
+                        .help("Delete all analyses"),
+                ),
         )
         .get_matches();
 
     match matches.subcommand() {
-        ("clean", _) => storage::clean_storage_area(),
+        ("clean", Some(matches)) => {
+            let clean_queries = matches.value_of("queries").is_some();
+            let clean_analyses = matches.value_of("analyses").is_some();
+            // Clean both if both args are present, or if none are
+            let clean_both =
+                (clean_queries && clean_analyses) || (!clean_queries && !clean_analyses);
+
+            if clean_queries || clean_both {
+                if Path::new(&storage::DEFAULT_QUERY_RESULT_DIR).exists() {
+                    std::fs::remove_dir_all(&DEFAULT_QUERY_RESULT_DIR)
+                        .expect("Could not clean out query storage area!");
+                }
+            }
+
+            if clean_analyses || clean_both {
+                if Path::new(&storage::DEFAULT_ANALYSIS_DIR).exists() {
+                    std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
+                        .expect("Could not clean out analysis storage area!");
+                }
+            }
+        }
         ("query", Some(matches)) => {
             let token_path = matches
                 .value_of("bearer_token")
@@ -99,7 +135,12 @@ async fn main() {
                 std::process::exit(1);
             } else {
                 // Run analysis on available queries
-                println!("Running analysis on available queries...");
+                println!("Running analysis on all available queries...");
+                let result = run_analysis(Vec::new()).await;
+                if result.is_err() {
+                    eprintln!("Could not run analysis: {}", result.unwrap_err());
+                    std::process::exit(1);
+                }
             }
         }
         (_, _) => {
