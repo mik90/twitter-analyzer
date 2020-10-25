@@ -1,10 +1,9 @@
-use crate::analysis::SearchAnalysis;
-
-use crate::twitter::QueryResult;
-use std::fs;
-use std::io;
-use std::io::{Error, ErrorKind, Write};
-use std::path::Path;
+use crate::{analysis::SearchAnalysis, twitter::QueryResult};
+use std::{
+  fs, io,
+  io::{Error, ErrorKind, Write},
+  path::Path,
+};
 
 pub const DEFAULT_ANALYSIS_DIR: &str = "analyses";
 pub const DEFAULT_QUERY_RESULT_DIR: &str = "queries";
@@ -13,30 +12,42 @@ pub const QUERY_RESULT_FILENAME: &str = "query-result.json";
 /// Retrieves results over multiple dates from a query
 fn retrieve_results_from_query(query_dir: &Path) -> io::Result<Vec<QueryResult>> {
   let mut results = Vec::new();
+  println!(
+    "Retrieving results from {}",
+    query_dir.to_str().unwrap_or("Could not unwrap path!")
+  );
   if query_dir.is_dir() {
-    for date in std::fs::read_dir(query_dir)? {
+    for date in fs::read_dir(query_dir)? {
       let date_dir = date?.path();
+      println!(
+        "Entered {}",
+        date_dir.to_str().unwrap_or("Could not unwrap date path!")
+      );
       // Should be a date
       if date_dir.is_dir() {
-        for result in std::fs::read_dir(date_dir)? {
-          let path = result?.path();
-          if path.is_file() && path.to_str().unwrap_or("") == QUERY_RESULT_FILENAME {
+        for result in fs::read_dir(date_dir)? {
+          let result_path = result?.path();
+          println!(
+            "Entered result {}",
+            result_path
+              .to_str()
+              .unwrap_or("Could not unwrap result path!")
+          );
+          if result_path.is_file() && result_path.ends_with(Path::new(QUERY_RESULT_FILENAME)) {
             // It's a query result so deserialize it!
-            let serial_query = std::fs::read(&path)?;
+            let serial_query = fs::read(&result_path)?;
             let deserialized_item: QueryResult = serde_json::from_slice(&serial_query)?;
             results.push(deserialized_item);
+            println!("Found query result at {:?}", &result_path);
           }
         }
-        return Ok(results);
       } else {
         let err = format!("{} is not a directory", query_dir.to_str().unwrap_or(""));
         return Err(Error::new(ErrorKind::NotFound, err));
       }
     }
-    Err(Error::new(
-      ErrorKind::NotFound,
-      "Did not find any query results",
-    ))
+    println!("");
+    Ok(results)
   } else {
     let err = format!("{} is not a directory", query_dir.to_str().unwrap_or(""));
     Err(Error::new(ErrorKind::NotFound, err))
@@ -48,12 +59,13 @@ pub fn retrieve_queries(base_dir: &Path, queries: &Vec<&str>) -> io::Result<Vec<
   if base_dir.is_dir() {
     // Recurse down
     let mut results = Vec::new();
-    for entry in std::fs::read_dir(base_dir)? {
-      let entry = entry?;
-      let path = entry.path();
+    for query in fs::read_dir(base_dir)? {
+      let query = query?;
+      let path = query.path();
       // Check if directory is named the same as a query
-      // Or just go into it if it's empty
-      if path.is_dir() && (queries.contains(&path.to_str().unwrap_or("")) || queries.is_empty()) {
+      // Or just go into it if we don't have any specific queries
+      let path_contains_query = path.is_dir() && queries.contains(&path.to_str().unwrap_or(""));
+      if path_contains_query || queries.is_empty() {
         // The path is a query we're searching for, so recurse down
         results.append(&mut retrieve_results_from_query(&path)?);
       }
@@ -89,7 +101,7 @@ fn store_analysis_with_location(
     fs::create_dir_all(&parent_dir).expect("Could not create directory despite it not being there");
   }
   let serialized_item = serde_json::to_string(item)?;
-  let mut file = std::fs::File::create(&storage_path)?;
+  let mut file = fs::File::create(&storage_path)?;
   file.write_all(serialized_item.as_bytes())?;
   Ok(())
 }
@@ -109,7 +121,7 @@ fn store_query_with_location(
     fs::create_dir_all(&parent_dir).expect("Could not create directory despite it not being there");
   }
   let serialized_item = serde_json::to_string(query_result)?;
-  let mut file = std::fs::File::create(&storage_path)?;
+  let mut file = fs::File::create(&storage_path)?;
   file.write_all(serialized_item.as_bytes())?;
   Ok(())
 }

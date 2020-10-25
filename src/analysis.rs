@@ -15,12 +15,13 @@
  */
 extern crate chrono;
 extern crate regex;
-use crate::storage;
-use crate::twitter::QueryResult;
+use crate::{storage, twitter::QueryResult};
 use regex::RegexSet;
-use std::collections::BTreeMap;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    io,
+    path::{Path, PathBuf},
+};
 
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]

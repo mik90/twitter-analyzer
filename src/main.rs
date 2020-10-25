@@ -4,7 +4,7 @@ mod test;
 mod twitter;
 
 extern crate clap;
-use analysis::*;
+use analysis::run_analysis;
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
 use storage::DEFAULT_QUERY_RESULT_DIR;
