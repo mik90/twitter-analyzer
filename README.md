@@ -25,5 +25,4 @@
 
 
 #### Todo
-- Have some way to verify any of my measurements are actually valid
-- Strip symbols and spaces when finding most common words
+- Remove articles and other common words

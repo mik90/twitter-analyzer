@@ -6,6 +6,7 @@ pub struct Tweet {
   pub text: String,
   pub handle: String,
   pub date_utc: chrono::DateTime<chrono::Utc>,
+  // egg_mode uses i32 for these two, might as well mimic it
   pub retweet_count: i32,
   pub favorite_count: i32,
 }
