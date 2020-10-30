@@ -20,6 +20,7 @@ use regex::RegexSet;
 use std::{
     collections::BTreeMap,
     io,
+    iter::FromIterator,
     path::{Path, PathBuf},
 };
 
@@ -28,8 +29,8 @@ use std::{
 pub struct SearchAnalysis {
     pub queries: Vec<String>,
     pub date_utc: chrono::DateTime<chrono::Utc>,
-    pub word_frequency: BTreeMap<String, usize>,
-    pub handle_patterns: BTreeMap<HandlePattern, usize>,
+    pub word_frequency: Vec<(String, usize)>,
+    pub handle_patterns: Vec<(HandlePattern, usize)>,
 }
 
 const N_MOST_COMMON_WORDS: usize = 5;
@@ -39,20 +40,20 @@ impl SearchAnalysis {
     pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> io::Result<SearchAnalysis> {
         let query_results = storage::retrieve_queries(base_dir, &queries)?;
         Ok(SearchAnalysis {
+            queries: query_results.iter().map(|x| x.query.to_string()).collect(),
+            date_utc: chrono::Utc::now(),
             word_frequency: get_most_common_words(&query_results),
             handle_patterns: get_most_common_handle_patterns(&query_results),
-            date_utc: chrono::Utc::now(),
-            queries: query_results.iter().map(|x| x.query.to_string()).collect(),
         })
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn create_empty() -> SearchAnalysis {
         SearchAnalysis {
             queries: Vec::new(),
-            word_frequency: BTreeMap::new(),
             date_utc: chrono::Utc::now(),
-            handle_patterns: BTreeMap::new(),
+            word_frequency: Vec::new(),
+            handle_patterns: Vec::new(),
         }
     }
 
@@ -85,7 +86,7 @@ impl SearchAnalysis {
     }
 }
 
-pub(crate) async fn run_analysis(queries: Vec<&str>) -> io::Result<()> {
+pub async fn run_analysis(queries: Vec<&str>) -> io::Result<()> {
     // TODO run analysis from dir
     let analysis = SearchAnalysis::from_stored_queries(
         &Path::new(storage::DEFAULT_QUERY_RESULT_DIR),
@@ -98,7 +99,7 @@ pub(crate) async fn run_analysis(queries: Vec<&str>) -> io::Result<()> {
 
 /// A category of handle format with their corresponding regex
 /// TODO: Is it possible to map an enum directly to a Regex?
-#[derive(serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub enum HandlePattern {
     NameWithNumbers = 0, // somename1234514 [a-z]+\d+
     Lowercase = 1,       // lowercase [a-z]+
@@ -139,8 +140,8 @@ impl HandlePattern {
 }
 
 /// Finds the most common words in a given search
-pub(crate) fn get_most_common_words(query_results: &[QueryResult]) -> BTreeMap<String, usize> {
-    let mut map_word_to_count = BTreeMap::new();
+pub fn get_most_common_words(query_results: &[QueryResult]) -> Vec<(String, usize)> {
+    let mut map_word_to_count: BTreeMap<String, usize> = BTreeMap::new();
 
     for query in query_results {
         for tweet in &query.tweets {
@@ -160,14 +161,18 @@ pub(crate) fn get_most_common_words(query_results: &[QueryResult]) -> BTreeMap<S
         }
     }
 
-    map_word_to_count
+    // https://stackoverflow.com/questions/41220872/how-if-possible-to-sort-a-btreemap-by-value-in-rust
+    let mut sorted_values = Vec::from_iter(map_word_to_count);
+    // Count should be in decreasing order
+    sorted_values.sort_unstable_by(|&(_, a), &(_, b)| b.cmp(&a));
+    sorted_values
 }
 
 /// Finds the most common handle patterns in a given search
-pub(crate) fn get_most_common_handle_patterns(
+pub fn get_most_common_handle_patterns(
     query_results: &[QueryResult],
-) -> BTreeMap<HandlePattern, usize> {
-    let mut map_pattern_to_count = BTreeMap::new();
+) -> Vec<(HandlePattern, usize)> {
+    let mut map_pattern_to_count: BTreeMap<HandlePattern, usize> = BTreeMap::new();
 
     for query in query_results {
         for tweet in &query.tweets {
@@ -178,25 +183,53 @@ pub(crate) fn get_most_common_handle_patterns(
             *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
         }
     }
-    map_pattern_to_count
+    // https://stackoverflow.com/questions/41220872/how-if-possible-to-sort-a-btreemap-by-value-in-rust
+    let mut sorted_values = Vec::from_iter(map_pattern_to_count);
+    // Count should be in decreasing order
+    sorted_values.sort_unstable_by(|&(_, a), &(_, b)| b.cmp(&a));
+    sorted_values
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::twitter::test::get_test_query_result;
+    use std::cmp::Ordering;
 
     #[tokio::test]
     async fn test_most_common_words() {
-        let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_test_query_result()];
         let words = get_most_common_words(&queries);
         assert!(!words.is_empty());
     }
 
     #[tokio::test]
+    async fn test_most_common_words_order() {
+        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let words = get_most_common_words(&queries);
+        // Check ordering of elements, the earlier items should be greater than the succeeding ones
+        // Reference: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.partial_cmp
+        assert_eq!(
+            words[0..].iter().partial_cmp(&words[1..]),
+            Some(Ordering::Greater)
+        );
+    }
+
+    #[tokio::test]
     async fn test_handle_patterns() {
-        let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_test_query_result()];
         let patterns = get_most_common_handle_patterns(&queries);
         assert!(!patterns.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_handle_patterns_order() {
+        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let patterns = get_most_common_handle_patterns(&queries);
+        assert_eq!(
+            patterns[0..].iter().partial_cmp(&patterns[1..]),
+            Some(Ordering::Greater)
+        );
     }
 
     #[tokio::test]
