@@ -1,8 +1,4 @@
-use crate::{
-  analysis::SearchAnalysis,
-  test::{self, setup_test_dir},
-  twitter::QueryResult,
-};
+use crate::{analysis::SearchAnalysis, twitter::QueryResult};
 use std::{
   fs, io,
   io::{Error, ErrorKind, Write},
@@ -50,7 +46,7 @@ fn retrieve_results_from_query(query_dir: &Path) -> io::Result<Vec<QueryResult>>
         return Err(Error::new(ErrorKind::NotFound, err));
       }
     }
-    println!("");
+    println!();
     Ok(results)
   } else {
     let err = format!("{} is not a directory", query_dir.to_str().unwrap_or(""));
@@ -59,7 +55,7 @@ fn retrieve_results_from_query(query_dir: &Path) -> io::Result<Vec<QueryResult>>
 }
 
 /// Retrieve specific queries, (or any) from a given directory
-pub fn retrieve_queries(base_dir: &Path, queries: &Vec<&str>) -> io::Result<Vec<QueryResult>> {
+pub fn retrieve_queries(base_dir: &Path, queries: &[&str]) -> io::Result<Vec<QueryResult>> {
   if base_dir.is_dir() {
     // Recurse down
     let mut results = Vec::new();
@@ -130,24 +126,32 @@ fn store_query_with_location(
   Ok(())
 }
 
-#[tokio::test]
-async fn test_analysis_storage() {
-  let storage_dir = Path::new(&test::TEST_ANALYSIS_STORAGE_LOCATION);
-  setup_test_dir(&storage_dir);
-  let analysis = SearchAnalysis::create_empty();
+#[cfg(test)]
+mod test {
+  use super::*;
+  use crate::analysis::SearchAnalysis;
+  use crate::twitter::test;
+  use std::path::Path;
 
-  store_analysis_with_location(&analysis, &storage_dir).expect("Could not store analysis!");
+  #[tokio::test]
+  async fn test_analysis_storage() {
+    let storage_dir = Path::new(&test::TEST_ANALYSIS_STORAGE_LOCATION);
+    test::setup_test_dir(&storage_dir);
+    let analysis = SearchAnalysis::create_empty();
 
-  assert!(storage_dir.exists());
-}
+    store_analysis_with_location(&analysis, &storage_dir).expect("Could not store analysis!");
 
-#[tokio::test]
-async fn test_query_storage() {
-  let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
-  setup_test_dir(&storage_dir);
-  let query = QueryResult::create_empty();
+    assert!(storage_dir.exists());
+  }
 
-  store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+  #[tokio::test]
+  async fn test_query_storage() {
+    let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
+    test::setup_test_dir(&storage_dir);
+    let query = QueryResult::create_empty();
 
-  assert!(storage_dir.exists());
+    store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+
+    assert!(storage_dir.exists());
+  }
 }

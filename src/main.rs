@@ -1,6 +1,5 @@
 mod analysis;
 mod storage;
-mod test;
 mod twitter;
 
 extern crate clap;
@@ -72,21 +71,20 @@ async fn main() {
             let clean_queries = matches.value_of("queries").is_some();
             let clean_analyses = matches.value_of("analyses").is_some();
             // Clean both if both args are present, or if none are
-            let clean_both =
-                (clean_queries && clean_analyses) || (!clean_queries && !clean_analyses);
+            let no_args_provided = !clean_queries && !clean_analyses;
 
-            if clean_queries || clean_both {
-                if Path::new(&storage::DEFAULT_QUERY_RESULT_DIR).exists() {
-                    std::fs::remove_dir_all(&DEFAULT_QUERY_RESULT_DIR)
-                        .expect("Could not clean out query storage area!");
-                }
+            if (clean_queries || no_args_provided)
+                && Path::new(&storage::DEFAULT_QUERY_RESULT_DIR).exists()
+            {
+                std::fs::remove_dir_all(&DEFAULT_QUERY_RESULT_DIR)
+                    .expect("Could not clean out query storage area!");
             }
 
-            if clean_analyses || clean_both {
-                if Path::new(&storage::DEFAULT_ANALYSIS_DIR).exists() {
-                    std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
-                        .expect("Could not clean out analysis storage area!");
-                }
+            if (clean_analyses || no_args_provided)
+                && Path::new(&storage::DEFAULT_ANALYSIS_DIR).exists()
+            {
+                std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
+                    .expect("Could not clean out analysis storage area!");
             }
         }
         ("query", Some(matches)) => {

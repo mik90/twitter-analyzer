@@ -36,16 +36,6 @@ const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
 impl SearchAnalysis {
-    #[allow(dead_code)]
-    pub fn from_query_result(result: &QueryResult) -> Option<SearchAnalysis> {
-        let result_vec: Vec<QueryResult> = vec![result.clone()];
-        Some(SearchAnalysis {
-            word_frequency: get_most_common_words(&result_vec),
-            handle_patterns: get_most_common_handle_patterns(&result_vec),
-            date_utc: chrono::Utc::now(),
-            queries: vec![result.query.clone()],
-        })
-    }
     pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> io::Result<SearchAnalysis> {
         let query_results = storage::retrieve_queries(base_dir, &queries)?;
         Ok(SearchAnalysis {
@@ -149,7 +139,7 @@ impl HandlePattern {
 }
 
 /// Finds the most common words in a given search
-pub(crate) fn get_most_common_words(query_results: &Vec<QueryResult>) -> BTreeMap<String, usize> {
+pub(crate) fn get_most_common_words(query_results: &[QueryResult]) -> BTreeMap<String, usize> {
     let mut map_word_to_count = BTreeMap::new();
 
     for query in query_results {
@@ -162,7 +152,8 @@ pub(crate) fn get_most_common_words(query_results: &Vec<QueryResult>) -> BTreeMa
                 let normalized_word = word
                     .to_string()
                     .to_lowercase()
-                    .replace(&['(', ')', ',', '\"', '.', ';', ':', '\''][..], "");
+                    .replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '!'][..], "");
+
                 // Insert count of 0 if the word was not seen before
                 *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
             }
@@ -174,7 +165,7 @@ pub(crate) fn get_most_common_words(query_results: &Vec<QueryResult>) -> BTreeMa
 
 /// Finds the most common handle patterns in a given search
 pub(crate) fn get_most_common_handle_patterns(
-    query_results: &Vec<QueryResult>,
+    query_results: &[QueryResult],
 ) -> BTreeMap<HandlePattern, usize> {
     let mut map_pattern_to_count = BTreeMap::new();
 
@@ -190,49 +181,54 @@ pub(crate) fn get_most_common_handle_patterns(
     map_pattern_to_count
 }
 
-#[tokio::test]
-async fn test_most_common_words() {
-    let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
-    let words = get_most_common_words(&queries);
-    assert!(!words.is_empty());
-}
+#[cfg(test)]
+mod test {
+    use super::*;
 
-#[tokio::test]
-async fn test_handle_patterns() {
-    let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
-    let patterns = get_most_common_handle_patterns(&queries);
-    assert!(!patterns.is_empty());
-}
+    #[tokio::test]
+    async fn test_most_common_words() {
+        let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+        let words = get_most_common_words(&queries);
+        assert!(!words.is_empty());
+    }
 
-#[tokio::test]
-async fn test_handle_firstname_lastname() {
-    assert_eq!(
-        HandlePattern::from("firstname1234"),
-        HandlePattern::NameWithNumbers
-    );
-}
+    #[tokio::test]
+    async fn test_handle_patterns() {
+        let queries: Vec<QueryResult> = vec![crate::test::get_test_query_result()];
+        let patterns = get_most_common_handle_patterns(&queries);
+        assert!(!patterns.is_empty());
+    }
 
-#[tokio::test]
-async fn test_handle_lowercase() {
-    assert_eq!(HandlePattern::from("lowercase"), HandlePattern::Lowercase);
-}
+    #[tokio::test]
+    async fn test_handle_firstname_lastname() {
+        assert_eq!(
+            HandlePattern::from("firstname1234"),
+            HandlePattern::NameWithNumbers
+        );
+    }
 
-#[tokio::test]
-async fn test_handle_uppercase() {
-    assert_eq!(HandlePattern::from("UPPERCASE"), HandlePattern::Uppercase);
-}
+    #[tokio::test]
+    async fn test_handle_lowercase() {
+        assert_eq!(HandlePattern::from("lowercase"), HandlePattern::Lowercase);
+    }
 
-#[tokio::test]
-async fn test_handle_camelcase() {
-    assert_eq!(HandlePattern::from("CamelCase"), HandlePattern::CamelCase);
-}
+    #[tokio::test]
+    async fn test_handle_uppercase() {
+        assert_eq!(HandlePattern::from("UPPERCASE"), HandlePattern::Uppercase);
+    }
 
-#[tokio::test]
-async fn test_handle_pascalcase() {
-    assert_eq!(HandlePattern::from("pascalCase"), HandlePattern::PascalCase);
-}
+    #[tokio::test]
+    async fn test_handle_camelcase() {
+        assert_eq!(HandlePattern::from("CamelCase"), HandlePattern::CamelCase);
+    }
 
-#[tokio::test]
-async fn test_handle_other() {
-    assert_eq!(HandlePattern::from("123o%her"), HandlePattern::Other);
+    #[tokio::test]
+    async fn test_handle_pascalcase() {
+        assert_eq!(HandlePattern::from("pascalCase"), HandlePattern::PascalCase);
+    }
+
+    #[tokio::test]
+    async fn test_handle_other() {
+        assert_eq!(HandlePattern::from("123o%her"), HandlePattern::Other);
+    }
 }
