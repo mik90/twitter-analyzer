@@ -3,7 +3,7 @@ mod storage;
 mod twitter;
 
 extern crate clap;
-use analysis::run_analysis;
+use analysis::{run_analysis, AnalysisConfig};
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
 use storage::DEFAULT_QUERY_RESULT_DIR;
@@ -34,13 +34,6 @@ async fn main() {
                         .help("Search query. Can include \"@\" if needed. Example: @twitter"),
                 )
                 .arg(
-                    Arg::with_name("config")
-                        .short("c")
-                        .long("config")
-                        .value_name("CONFIG_PATH")
-                        .help("Path of json config with twitter handles"),
-                )
-                .arg(
                     Arg::with_name("bearer_token")
                         .short("t")
                         .long("bearer-token")
@@ -67,6 +60,32 @@ async fn main() {
         .get_matches();
 
     match matches.subcommand() {
+        ("analyze", Some(matches)) => {
+            let maybe_command = matches.value_of("analyze_command");
+            if maybe_command.is_some() {
+                eprintln!("Specific commands not implemented yet!");
+                std::process::exit(1);
+            } else {
+                // TODO Possibly allow config from command line? Or remove the configuration of the other one
+                let config = AnalysisConfig::get(&std::path::Path::new("conf/analysis.json"));
+                if config.is_none() {
+                    std::process::exit(1);
+                }
+                let start = std::time::Instant::now();
+                // Run analysis on available queries
+                println!("Running analysis on all available queries...");
+                let result = run_analysis(Vec::new(), config.unwrap()).await;
+                if result.is_err() {
+                    eprintln!("Could not run analysis: {}", result.unwrap_err());
+                    std::process::exit(1);
+                } else {
+                    println!(
+                        "Time to analyze accounts from configuration: {} milliseconds",
+                        (std::time::Instant::now() - start).as_millis()
+                    )
+                }
+            }
+        }
         ("clean", Some(matches)) => {
             let clean_queries = matches.value_of("queries").is_some();
             let clean_analyses = matches.value_of("analyses").is_some();
@@ -112,33 +131,16 @@ async fn main() {
                 )
             } else {
                 // No command line search query provided, search from configuration
-                let config_path = matches.value_of("config").unwrap_or("conf/accounts.json");
-                let maybe_config = Config::get(&std::path::Path::new(config_path));
-                if maybe_config.is_none() {
+                let config = Config::get(&std::path::Path::new("conf/accounts.json"));
+                if config.is_none() {
                     std::process::exit(1);
                 }
-                println!("Analyzing queries from {}", config_path);
                 let start = std::time::Instant::now();
-                run_query_from_config(maybe_token.unwrap(), maybe_config.unwrap()).await;
+                run_query_from_config(maybe_token.unwrap(), config.unwrap()).await;
                 println!(
                     "Time to analyze accounts from configuration: {} milliseconds",
                     (std::time::Instant::now() - start).as_millis()
                 )
-            }
-        }
-        ("analyze", Some(matches)) => {
-            let maybe_command = matches.value_of("analyze_command");
-            if maybe_command.is_some() {
-                eprintln!("Specific commands not implemented yet!");
-                std::process::exit(1);
-            } else {
-                // Run analysis on available queries
-                println!("Running analysis on all available queries...");
-                let result = run_analysis(Vec::new()).await;
-                if result.is_err() {
-                    eprintln!("Could not run analysis: {}", result.unwrap_err());
-                    std::process::exit(1);
-                }
             }
         }
         (_, _) => {

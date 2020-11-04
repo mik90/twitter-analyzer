@@ -28,7 +28,7 @@ pub struct QueryResult {
 const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
-pub(crate) async fn run_query(token: &egg_mode::Token, query: String) {
+pub async fn run_query(token: &egg_mode::Token, query: String) {
   let response = egg_mode::search::search(query.clone())
     .result_type(egg_mode::search::ResultType::Recent)
     .count(N_TWEETS_PER_PAGE)
@@ -44,7 +44,7 @@ pub(crate) async fn run_query(token: &egg_mode::Token, query: String) {
 }
 
 /// Analyze multiple accounts as deserialized from configuration
-pub(crate) async fn run_query_from_config(token: egg_mode::Token, config: crate::twitter::Config) {
+pub async fn run_query_from_config(token: egg_mode::Token, config: crate::twitter::Config) {
   // Map accounts to analyzation calls
   let futures: Vec<_> = config
     .accounts

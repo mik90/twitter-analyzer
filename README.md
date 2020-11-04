@@ -14,6 +14,8 @@
 
 #### conf/
 - accounts.json: List of accounts to search (if not supplied on command line)
+- analysis.json: Configuration for discarding words
+  - Prepositions grabbed from https://github.com/dariusk/corpora/blob/master/data/words/prepositions.json
 
 #### auth/
 - Twitter API keys and tokens. Use your own bearer token.
@@ -25,4 +27,5 @@
 
 
 #### Todo
-- Remove articles and other common words
+- Remove queries from most common words
+- Recurse down into queries correctly (don't repeat the queries)

@@ -1,18 +1,3 @@
-/*
- * - Patterns:
- *      - Most common words used in replies
- *      - Most common username format
- *          - somename1234514
- *          - FirstnameLastname
- *          - lowercase
- *          - PascalCase
- *          - CamelCase
- *          - UPPERCASE
- *          - Other
- *      - Account age
- *      - Account location
- * - Serialize summation to disk in json
- */
 extern crate chrono;
 extern crate regex;
 use crate::{storage, twitter::QueryResult};
@@ -33,16 +18,51 @@ pub struct SearchAnalysis {
     pub handle_patterns: Vec<(HandlePattern, usize)>,
 }
 
+/// Analysis configuration
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct AnalysisConfig {
+    pub version: u32,
+    pub description: String,
+    pub ignored_words: Vec<String>,
+}
+
+impl AnalysisConfig {
+    pub fn get(config_path: &std::path::Path) -> Option<AnalysisConfig> {
+        // TODO Map the io::Result or serde_json::Result to the same type
+        let file_string = std::fs::read_to_string(config_path);
+        if file_string.is_err() {
+            eprintln!(
+                "Could not read {:?}, got error:{:?}",
+                config_path,
+                file_string.err()
+            );
+            return None;
+        }
+        let deserialied_json: serde_json::Result<AnalysisConfig> =
+            serde_json::from_str(file_string.unwrap().as_str());
+        if deserialied_json.is_err() {
+            eprintln!("serde_json parse error: {:?}", deserialied_json.err());
+            return None;
+        }
+
+        Some(deserialied_json.unwrap())
+    }
+}
+
 const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
 impl SearchAnalysis {
-    pub fn from_stored_queries(base_dir: &Path, queries: Vec<&str>) -> io::Result<SearchAnalysis> {
-        let query_results = storage::retrieve_queries(base_dir, &queries)?;
+    pub fn from_stored_queries(
+        base_dir: &Path,
+        queries_to_analyze: Vec<&str>,
+        words_to_ignore: &[String],
+    ) -> io::Result<SearchAnalysis> {
+        let query_results = storage::retrieve_queries(base_dir, &queries_to_analyze)?;
         Ok(SearchAnalysis {
             queries: query_results.iter().map(|x| x.query.to_string()).collect(),
             date_utc: chrono::Utc::now(),
-            word_frequency: get_most_common_words(&query_results),
+            word_frequency: get_most_common_words(&query_results, &words_to_ignore),
             handle_patterns: get_most_common_handle_patterns(&query_results),
         })
     }
@@ -86,18 +106,33 @@ impl SearchAnalysis {
     }
 }
 
-pub async fn run_analysis(queries: Vec<&str>) -> io::Result<()> {
-    // TODO run analysis from dir
+pub async fn run_analysis(queries: Vec<&str>, config: AnalysisConfig) -> io::Result<()> {
     let analysis = SearchAnalysis::from_stored_queries(
         &Path::new(storage::DEFAULT_QUERY_RESULT_DIR),
         queries,
+        &config.ignored_words,
     )?;
     storage::store_analysis(&analysis)?;
     println!("{}", analysis.summary());
     Ok(())
 }
 
-/// A category of handle format with their corresponding regex
+/**
+ *  A category of handle format with their corresponding regex
+ *
+ * - Patterns:
+ *      - Most common words used in replies
+ *      - Most common username format
+ *          - somename1234514
+ *          - FirstnameLastname
+ *          - lowercase
+ *          - PascalCase
+ *          - CamelCase
+ *          - UPPERCASE
+ *          - Other
+ *      - Account age
+ *      - Account location
+ */
 /// TODO: Is it possible to map an enum directly to a Regex?
 #[derive(serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub enum HandlePattern {
@@ -140,7 +175,10 @@ impl HandlePattern {
 }
 
 /// Finds the most common words in a given search
-pub fn get_most_common_words(query_results: &[QueryResult]) -> Vec<(String, usize)> {
+pub fn get_most_common_words(
+    query_results: &[QueryResult],
+    ignored_words: &[String],
+) -> Vec<(String, usize)> {
     let mut map_word_to_count: BTreeMap<String, usize> = BTreeMap::new();
 
     for query in query_results {
@@ -154,9 +192,10 @@ pub fn get_most_common_words(query_results: &[QueryResult]) -> Vec<(String, usiz
                     .to_string()
                     .to_lowercase()
                     .replace(&['(', ')', ',', '\"', '.', ';', ':', '\'', '!'][..], "");
-
-                // Insert count of 0 if the word was not seen before
-                *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
+                if !ignored_words.contains(&normalized_word) {
+                    // Insert count of 0 if the word was not seen before
+                    *map_word_to_count.entry(normalized_word).or_insert(0) += 1;
+                }
             }
         }
     }
@@ -183,7 +222,6 @@ pub fn get_most_common_handle_patterns(
             *map_pattern_to_count.entry(pattern).or_insert(0) += 1;
         }
     }
-    // https://stackoverflow.com/questions/41220872/how-if-possible-to-sort-a-btreemap-by-value-in-rust
     let mut sorted_values = Vec::from_iter(map_pattern_to_count);
     // Count should be in decreasing order
     sorted_values.sort_unstable_by(|&(_, a), &(_, b)| b.cmp(&a));
@@ -199,14 +237,14 @@ mod test {
     #[tokio::test]
     async fn test_most_common_words() {
         let queries: Vec<QueryResult> = vec![get_test_query_result()];
-        let words = get_most_common_words(&queries);
+        let words = get_most_common_words(&queries, &Vec::new());
         assert!(!words.is_empty());
     }
 
     #[tokio::test]
     async fn test_most_common_words_order() {
         let queries: Vec<QueryResult> = vec![get_test_query_result()];
-        let words = get_most_common_words(&queries);
+        let words = get_most_common_words(&queries, &Vec::new());
         // Check ordering of elements, the earlier items should be greater than the succeeding ones
         // Reference: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.partial_cmp
         assert_eq!(
