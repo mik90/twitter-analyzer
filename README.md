@@ -27,5 +27,5 @@
 
 
 #### Todo
-- Remove queries from most common words
-- Recurse down into queries correctly (don't repeat the queries)
+1. Recurse down into queries correctly in storage::retrieve_queries (don't repeat the queries)
+2. Remove queries from most common words (1 is required first)

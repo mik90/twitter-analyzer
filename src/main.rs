@@ -74,7 +74,7 @@ async fn main() {
                 let start = std::time::Instant::now();
                 // Run analysis on available queries
                 println!("Running analysis on all available queries...");
-                let result = run_analysis(Vec::new(), config.unwrap()).await;
+                let result = run_analysis(config.unwrap()).await;
                 if result.is_err() {
                     eprintln!("Could not run analysis: {}", result.unwrap_err());
                     std::process::exit(1);

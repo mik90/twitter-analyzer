@@ -55,10 +55,9 @@ const N_MOST_HANDLE_PATTERNS: usize = 3;
 impl SearchAnalysis {
     pub fn from_stored_queries(
         base_dir: &Path,
-        queries_to_analyze: Vec<&str>,
         words_to_ignore: &[String],
     ) -> io::Result<SearchAnalysis> {
-        let query_results = storage::retrieve_queries(base_dir, &queries_to_analyze)?;
+        let query_results = storage::retrieve_all_queries(base_dir)?;
         Ok(SearchAnalysis {
             queries: query_results.iter().map(|x| x.query.to_string()).collect(),
             date_utc: chrono::Utc::now(),
@@ -106,10 +105,9 @@ impl SearchAnalysis {
     }
 }
 
-pub async fn run_analysis(queries: Vec<&str>, config: AnalysisConfig) -> io::Result<()> {
+pub async fn run_analysis(config: AnalysisConfig) -> io::Result<()> {
     let analysis = SearchAnalysis::from_stored_queries(
         &Path::new(storage::DEFAULT_QUERY_RESULT_DIR),
-        queries,
         &config.ignored_words,
     )?;
     storage::store_analysis(&analysis)?;

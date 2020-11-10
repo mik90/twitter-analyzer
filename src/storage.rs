@@ -1,86 +1,23 @@
 use crate::{analysis::SearchAnalysis, twitter::QueryResult};
-use std::{
-  fs, io,
-  io::{Error, ErrorKind, Write},
-  path::Path,
-};
+use std::{fs, io, io::Write, path::Path};
+use walkdir::WalkDir;
 
 pub const DEFAULT_ANALYSIS_DIR: &str = "analyses";
 pub const DEFAULT_QUERY_RESULT_DIR: &str = "queries";
 pub const QUERY_RESULT_FILENAME: &str = "query-result.json";
 
-/// Retrieves results over multiple dates from a query
-fn retrieve_results_from_query(query_dir: &Path) -> io::Result<Vec<QueryResult>> {
-  let mut results = Vec::new();
-  println!(
-    "Retrieving results from {}",
-    query_dir.to_str().unwrap_or("Could not unwrap path!")
-  );
-  if query_dir.is_dir() {
-    for date in fs::read_dir(query_dir)? {
-      let date_dir = date?.path();
-      println!(
-        "Entered {}",
-        date_dir.to_str().unwrap_or("Could not unwrap date path!")
-      );
-      // Should be a date
-      if date_dir.is_dir() {
-        for result in fs::read_dir(date_dir)? {
-          let result_path = result?.path();
-          println!(
-            "Entered result {}",
-            result_path
-              .to_str()
-              .unwrap_or("Could not unwrap result path!")
-          );
-          if result_path.is_file() && result_path.ends_with(Path::new(QUERY_RESULT_FILENAME)) {
-            // It's a query result so deserialize it!
-            let serial_query = fs::read(&result_path)?;
-            let deserialized_item: QueryResult = serde_json::from_slice(&serial_query)?;
-            results.push(deserialized_item);
-            println!("Found query result at {:?}", &result_path);
-          }
-        }
-      } else {
-        let err = format!("{} is not a directory", query_dir.to_str().unwrap_or(""));
-        return Err(Error::new(ErrorKind::NotFound, err));
-      }
-    }
-    println!();
-    Ok(results)
-  } else {
-    let err = format!("{} is not a directory", query_dir.to_str().unwrap_or(""));
-    Err(Error::new(ErrorKind::NotFound, err))
-  }
-}
-
 /// Retrieve specific queries, (or any) from a given directory
-pub fn retrieve_queries(base_dir: &Path, queries: &[&str]) -> io::Result<Vec<QueryResult>> {
-  if base_dir.is_dir() {
-    // Recurse down
-    let mut results = Vec::new();
-    for query in fs::read_dir(base_dir)? {
-      let query = query?;
-      let path = query.path();
-      // Check if directory is named the same as a query
-      // Or just go into it if we don't have any specific queries
-      let path_contains_query = path.is_dir() && queries.contains(&path.to_str().unwrap_or(""));
-      if path_contains_query || queries.is_empty() {
-        // The path is a query we're searching for, so recurse down
-        results.append(&mut retrieve_results_from_query(&path)?);
-      }
-    }
-    if results.is_empty() {
-      return Err(Error::new(
-        ErrorKind::NotFound,
-        "Could not find any query results!",
-      ));
-    }
-    Ok(results)
-  } else {
-    let err = format!("{:?} is not a directory", base_dir.to_str());
-    Err(Error::new(ErrorKind::NotFound, err))
-  }
+pub fn retrieve_all_queries(base_dir: &Path) -> io::Result<Vec<QueryResult>> {
+  Ok(
+    WalkDir::new(base_dir)
+      .into_iter()
+      .filter_map(Result::ok)
+      // Grab entries that are query.json files
+      .filter(|e| e.file_name().eq(QUERY_RESULT_FILENAME))
+      .map(|f| QueryResult::deserialize(f.into_path()))
+      .filter_map(Result::ok)
+      .collect(),
+  )
 }
 
 pub fn store_analysis(item: &SearchAnalysis) -> Result<(), std::io::Error> {
@@ -153,5 +90,24 @@ mod test {
     store_query_with_location(&query, &storage_dir).expect("Could not store query!");
 
     assert!(storage_dir.exists());
+  }
+  #[tokio::test]
+  async fn test_query_retrieval() {
+    let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
+    test::setup_test_dir(&storage_dir);
+
+    let query = QueryResult::create_empty();
+    store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+
+    assert!(storage_dir.exists());
+
+    let query = QueryResult::create_empty();
+    store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+
+    let queries = retrieve_all_queries(storage_dir);
+    assert!(queries.is_ok(), format!("Error: {:?}", queries.err()));
+    let queries = queries.unwrap();
+    assert_eq!(queries.len(), 2, "Queries: {:?}", queries);
+    assert_eq!(queries[0].query, queries[1].query)
   }
 }

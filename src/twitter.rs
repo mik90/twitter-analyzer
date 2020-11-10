@@ -1,5 +1,8 @@
 use crate::storage;
-use std::path::{Path, PathBuf};
+use std::{
+  fs, io,
+  path::{Path, PathBuf},
+};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Tweet {
@@ -88,15 +91,6 @@ impl QueryResult {
     }
   }
 
-  #[allow(dead_code)]
-  pub fn create_empty() -> QueryResult {
-    QueryResult {
-      query: "".to_string(),
-      date_utc: chrono::Utc::now(),
-      tweets: Vec::new(),
-    }
-  }
-
   /// Saves to $PWD/<base_dir>/<handle>/<search-date>/query-result.json
   pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
     // ISO 8601 / RFC 3339 date & time format
@@ -105,6 +99,9 @@ impl QueryResult {
     path.push(&self.date_utc.format("%+").to_string());
     path.push(Path::new(storage::QUERY_RESULT_FILENAME));
     path
+  }
+  pub fn deserialize(path: PathBuf) -> Result<QueryResult, io::Error> {
+    Ok(serde_json::from_slice(&fs::read(path)?)?)
   }
 }
 
@@ -174,10 +171,21 @@ async fn test_json_parse() {
 #[cfg(test)]
 pub mod test {
   use crate::twitter;
+  use crate::twitter::QueryResult;
   use std::{fs, path::Path};
   pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analyses";
   pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
   pub const TEST_QUERY_LOCATION: &str = "test_resources/query-result.json";
+
+  impl QueryResult {
+    pub fn create_empty() -> QueryResult {
+      QueryResult {
+        query: "empty_query".to_string(),
+        date_utc: chrono::Utc::now(),
+        tweets: Vec::new(),
+      }
+    }
+  }
 
   pub fn get_test_query_result() -> twitter::QueryResult {
     // It's a query result so deserialize it!
@@ -191,9 +199,21 @@ pub mod test {
   /// Ensures that test area is usable
   pub fn setup_test_dir(dir: &Path) {
     if dir.exists() {
+      assert!(dir.is_dir());
       println!("Cleaning storage area at {:?}", dir.canonicalize());
-      std::fs::remove_dir_all(dir).expect("Could not clean out storage area!");
+      let res = std::fs::remove_dir_all(dir);
+      assert!(
+        res.is_ok(),
+        "Error while deleting directory: {:?}",
+        res.unwrap_err()
+      );
+    } else {
+      let res = fs::create_dir(dir);
+      assert!(
+        res.is_ok(),
+        "Error while creating new directory: {:?}",
+        res.unwrap_err()
+      );
     }
-    fs::create_dir(dir).expect("Could not create storage area!");
   }
-}
+} // end test mod
