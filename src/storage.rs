@@ -91,23 +91,26 @@ mod test {
 
     assert!(storage_dir.exists());
   }
+
   #[tokio::test]
   async fn test_query_retrieval() {
     let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
     test::setup_test_dir(&storage_dir);
 
     let query = QueryResult::create_empty();
-    store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+    let res = store_query_with_location(&query, &storage_dir);
+    assert!(res.is_ok(), "Could not store query: {}", res.unwrap_err());
 
     assert!(storage_dir.exists());
 
     let query = QueryResult::create_empty();
-    store_query_with_location(&query, &storage_dir).expect("Could not store query!");
+    let res = store_query_with_location(&query, &storage_dir);
+    assert!(res.is_ok(), "Could not store query: {}", res.unwrap_err());
 
     let queries = retrieve_all_queries(storage_dir);
     assert!(queries.is_ok(), format!("Error: {:?}", queries.err()));
     let queries = queries.unwrap();
     assert_eq!(queries.len(), 2, "Queries: {:?}", queries);
-    assert_eq!(queries[0].query, queries[1].query)
+    assert_eq!(queries[0].query, queries[1].query);
   }
 }
