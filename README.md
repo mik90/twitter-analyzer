@@ -22,10 +22,11 @@
 
 #### Storage
 - Stores queries and analyses in json with serde_json
-- Analyses are stored as `analyses/\<handle\>/\<search_date\>/analysis.json`
-- Queries are stored as `queries/\<handle\>/\<search_date\>/query-result.json`
+- Analyses are stored as `analyses/<handle>/<search_date>/analysis.json`
+- Queries are stored as `queries/<handle>/<search_date>/query-result.json`
 
 
 #### Todo
 1. Recurse down into queries correctly in storage::retrieve_queries (don't repeat the queries)
 2. Remove queries from most common words (1 is required first)
+3. Make query storage/retrieval more modular! Deleting the entire `test_queries` dir every test case is slow
