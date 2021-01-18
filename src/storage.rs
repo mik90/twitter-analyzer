@@ -1,35 +1,36 @@
 use crate::{analysis::SearchAnalysis, twitter::QueryResult};
-use std::{fs, io, io::Write, path::Path};
+use std::{fs, io, io::Write, path::Path, path::PathBuf};
 use walkdir::WalkDir;
 
 pub const DEFAULT_ANALYSIS_DIR: &str = "analyses";
 pub const DEFAULT_QUERY_RESULT_DIR: &str = "queries";
-pub const QUERY_RESULT_FILENAME: &str = "query-result.json";
 
-/// Retrieve specific queries, (or any) from a given directory
-pub fn retrieve_all_queries(base_dir: &Path) -> io::Result<Vec<QueryResult>> {
-    Ok(WalkDir::new(base_dir)
-        .into_iter()
-        .filter_map(Result::ok)
-        // Grab entries that are query.json files
-        .filter(|e| e.file_name().eq(QUERY_RESULT_FILENAME))
-        .map(|f| QueryResult::deserialize(f.into_path()))
-        .filter_map(Result::ok)
-        .collect())
+pub struct StorageHandler {
+    base_dir: PathBuf,
 }
 
-pub fn store_analysis(item: &SearchAnalysis) -> Result<(), std::io::Error> {
-    store_analysis_with_location(item, &Path::new(DEFAULT_ANALYSIS_DIR))
-}
-/**
- *  Stores a SearchAnalysis and directory structure indicates handle and date
- *  Base location is optional and will default to DEFAULT_STORAGE_LOCATION.
- */
-fn store_analysis_with_location(
-    item: &SearchAnalysis,
-    base_dir: &Path,
-) -> Result<(), std::io::Error> {
-    let storage_path = item.storage_location(base_dir);
+impl StorageHandler {
+  const QUERY_RESULT_FILENAME: &str = "query-result.json",
+  pub fn new(base_dir: PathBuf) -> StorageHandler {
+      StorageHandler {
+          base_dir,
+      }
+  }
+
+  /// Retrieve specific queries, (or any) from a given directory
+  pub fn retrieve_all_queries(&self) -> io::Result<Vec<QueryResult>> {
+      Ok(WalkDir::new(&self.base_dir)
+          .into_iter()
+          .filter_map(Result::ok)
+          // Grab entries that are query.json files
+          .filter(|e| e.file_name().eq(QUERY_RESULT_FILENAME))
+          .map(|f| QueryResult::deserialize(f.into_path()))
+          .filter_map(Result::ok)
+          .collect())
+  }
+
+  pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
+    let storage_path = item.storage_location(self.base_dir);
     println!("Storing analysis as {:?}", &storage_path);
     let parent_dir = storage_path.parent().unwrap();
     if fs::metadata(&parent_dir).is_err() {
@@ -40,17 +41,10 @@ fn store_analysis_with_location(
     let mut file = fs::File::create(&storage_path)?;
     file.write_all(serialized_item.as_bytes())?;
     Ok(())
-}
+  }
 
-pub fn store_query(query_result: &QueryResult) -> Result<(), std::io::Error> {
-    store_query_with_location(&query_result, &Path::new(DEFAULT_QUERY_RESULT_DIR))
-}
-
-fn store_query_with_location(
-    query_result: &QueryResult,
-    base_dir: &Path,
-) -> Result<(), std::io::Error> {
-    let storage_path = query_result.storage_location(base_dir);
+  pub fn save_query(&self, query_result: &QueryResult) -> Result<(), std::io::Error> {
+    let storage_path = query_result.storage_location(&self.base_dir);
     println!("Storing query result as {:?}", &storage_path);
     let parent_dir = storage_path.parent().unwrap();
     if fs::metadata(&parent_dir).is_err() {
@@ -61,25 +55,32 @@ fn store_query_with_location(
     let mut file = fs::File::create(&storage_path)?;
     file.write_all(serialized_item.as_bytes())?;
     Ok(())
+  }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{retrieve_all_queries, store_analysis_with_location, store_query_with_location};
+
+    use super::StorageHandler;
     use crate::{analysis::SearchAnalysis, twitter::QueryResult, util::test};
     use std::path::Path;
+
+    fn get_test_storage_handler() -> StorageHandler {
+      StorageHandler::new(&test::TEST_TEMP_DIR)
+    }
+
     #[tokio::test]
     async fn test_analysis_storage() {
         let analysis = SearchAnalysis::create_empty();
-        let dir = Path::new(&test::TEST_TEMP_DIR);
-        store_analysis_with_location(&analysis, dir).expect("Could not store analysis!");
+        let storage_handler = get_test_storage_handler();
+        storage_handler.save_analysis(&analysis).expect("Could not store analysis!");
     }
 
     #[tokio::test]
     async fn test_query_storage() {
         let query = QueryResult::create_empty();
         let dir = Path::new(&test::TEST_TEMP_DIR);
-        store_query_with_location(&query, dir).expect("Could not store query!");
+        save_query_to(&query, dir).expect("Could not store query!");
     }
 
     #[tokio::test]
@@ -89,9 +90,9 @@ mod test {
 
         let query = QueryResult::create_empty();
 
-        let res = store_query_with_location(&query, &storage_dir);
+        let res = save_query_to(&query, &storage_dir);
         assert!(res.is_ok(), "Could not store query 1: {}", res.unwrap_err());
-        let res = store_query_with_location(&query, &storage_dir);
+        let res = save_query_to(&query, &storage_dir);
         assert!(res.is_ok(), "Could not store query 2: {}", res.unwrap_err());
 
         let queries = retrieve_all_queries(storage_dir);

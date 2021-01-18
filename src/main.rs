@@ -124,7 +124,7 @@ async fn main() {
                 println!("Searching for {:?}", &search_query);
 
                 let start = std::time::Instant::now();
-                run_query(&maybe_token.unwrap(), search_query.to_owned()).await;
+                search_for(&maybe_token.unwrap(), search_query.to_owned()).await;
                 println!(
                     "Time to analyze {}: {} milliseconds",
                     search_query,

@@ -31,7 +31,7 @@ pub struct QueryResult {
 const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
-pub async fn run_query(token: &egg_mode::Token, query: String) {
+pub async fn search_for(token: &egg_mode::Token, query: String) {
     let response = egg_mode::search::search(query.clone())
         .result_type(egg_mode::search::ResultType::Recent)
         .count(N_TWEETS_PER_PAGE)
@@ -52,7 +52,7 @@ pub async fn run_query_from_config(token: egg_mode::Token, config: crate::twitte
     let futures: Vec<_> = config
         .accounts
         .into_iter()
-        .map(|acc| run_query(&token, acc.handle))
+        .map(|acc| search_for(&token, acc.handle))
         .collect();
 
     for f in futures {
@@ -105,7 +105,7 @@ impl QueryResult {
     }
 }
 
-// Not used, but can be useful
+// Not used, but can be useful for testing
 fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
     for tweet in &search_result.statuses {
         println!(
