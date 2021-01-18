@@ -1,6 +1,7 @@
 mod analysis;
 mod storage;
 mod twitter;
+mod util;
 
 extern crate clap;
 use analysis::{run_analysis, AnalysisConfig};

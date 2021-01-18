@@ -1,30 +1,30 @@
 use crate::storage;
 use std::{
-  fs, io,
-  path::{Path, PathBuf},
+    fs, io,
+    path::{Path, PathBuf},
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Tweet {
-  pub text: String,
-  pub handle: String,
-  pub date_utc: chrono::DateTime<chrono::Utc>,
-  // egg_mode uses i32 for these two, might as well mimic it
-  pub retweet_count: i32,
-  pub favorite_count: i32,
+    pub text: String,
+    pub handle: String,
+    pub date_utc: chrono::DateTime<chrono::Utc>,
+    // egg_mode uses i32 for these two, might as well mimic it
+    pub retweet_count: i32,
+    pub favorite_count: i32,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TwitterAccount {
-  pub handle: String, // Includes "@"
-  pub category: String,
+    pub handle: String, // Includes "@"
+    pub category: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct QueryResult {
-  pub query: String,
-  pub date_utc: chrono::DateTime<chrono::Utc>,
-  pub tweets: Vec<Tweet>,
+    pub query: String,
+    pub date_utc: chrono::DateTime<chrono::Utc>,
+    pub tweets: Vec<Tweet>,
 }
 
 /// Maximum for egg-mode
@@ -32,188 +32,139 @@ const N_TWEETS_PER_PAGE: u32 = 100;
 
 /// account_handle includes the "@"
 pub async fn run_query(token: &egg_mode::Token, query: String) {
-  let response = egg_mode::search::search(query.clone())
-    .result_type(egg_mode::search::ResultType::Recent)
-    .count(N_TWEETS_PER_PAGE)
-    .call(&token)
-    .await
-    .unwrap()
-    .response;
+    let response = egg_mode::search::search(query.clone())
+        .result_type(egg_mode::search::ResultType::Recent)
+        .count(N_TWEETS_PER_PAGE)
+        .call(&token)
+        .await
+        .unwrap()
+        .response;
 
-  let query_result = QueryResult::new(query.as_str(), chrono::Utc::now(), &response);
-  if storage::store_query(&query_result).is_err() {
-    eprintln!("Could not store query!");
-  }
+    let query_result = QueryResult::new(query.as_str(), chrono::Utc::now(), &response);
+    if storage::store_query(&query_result).is_err() {
+        eprintln!("Could not store query!");
+    }
 }
 
 /// Analyze multiple accounts as deserialized from configuration
 pub async fn run_query_from_config(token: egg_mode::Token, config: crate::twitter::Config) {
-  // Map accounts to analyzation calls
-  let futures: Vec<_> = config
-    .accounts
-    .into_iter()
-    .map(|acc| run_query(&token, acc.handle))
-    .collect();
+    // Map accounts to analyzation calls
+    let futures: Vec<_> = config
+        .accounts
+        .into_iter()
+        .map(|acc| run_query(&token, acc.handle))
+        .collect();
 
-  for f in futures {
-    f.await;
-  }
+    for f in futures {
+        f.await;
+    }
 }
 
 /// Parse an egg_mode::search::SearchResult into a serializable vector of tweets
 pub fn search_to_tweet_vec(search: &egg_mode::search::SearchResult) -> Vec<Tweet> {
-  let mut tweets = Vec::new();
-  for tweet in &search.statuses {
-    // TODO Clean this up, it's super weird
-    let temp = &*(tweet.user.as_ref().unwrap());
-    let handle = temp.screen_name.clone();
-    tweets.push(Tweet {
-      handle,
-      text: tweet.text.to_owned(),
-      date_utc: tweet.created_at,
-      retweet_count: tweet.retweet_count,
-      favorite_count: tweet.favorite_count,
-    })
-  }
-  tweets
+    let mut tweets = Vec::new();
+    for tweet in &search.statuses {
+        // TODO Clean this up, it's super weird
+        let temp = &*(tweet.user.as_ref().unwrap());
+        let handle = temp.screen_name.clone();
+        tweets.push(Tweet {
+            handle,
+            text: tweet.text.to_owned(),
+            date_utc: tweet.created_at,
+            retweet_count: tweet.retweet_count,
+            favorite_count: tweet.favorite_count,
+        })
+    }
+    tweets
 }
 
 impl QueryResult {
-  pub fn new(
-    query: &str,
-    date_utc: chrono::DateTime<chrono::Utc>,
-    search: &egg_mode::search::SearchResult,
-  ) -> QueryResult {
-    QueryResult {
-      query: query.to_string(),
-      date_utc,
-      tweets: search_to_tweet_vec(&search),
+    pub fn new(
+        query: &str,
+        date_utc: chrono::DateTime<chrono::Utc>,
+        search: &egg_mode::search::SearchResult,
+    ) -> QueryResult {
+        QueryResult {
+            query: query.to_string(),
+            date_utc,
+            tweets: search_to_tweet_vec(&search),
+        }
     }
-  }
 
-  /// Saves to $PWD/<base_dir>/<handle>/<search-date>/query-result.json
-  pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
-    // ISO 8601 / RFC 3339 date & time format
-    let mut path = PathBuf::from(base_dir);
-    path.push(&self.query);
-    path.push(&self.date_utc.format("%+").to_string());
-    path.push(Path::new(storage::QUERY_RESULT_FILENAME));
-    path
-  }
-  pub fn deserialize(path: PathBuf) -> Result<QueryResult, io::Error> {
-    Ok(serde_json::from_slice(&fs::read(path)?)?)
-  }
+    /// Saves to $PWD/<base_dir>/<handle>/<search-date>/query-result.json
+    pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
+        // ISO 8601 / RFC 3339 date & time format
+        let mut path = PathBuf::from(base_dir);
+        path.push(&self.query);
+        path.push(&self.date_utc.format("%+").to_string());
+        path.push(Path::new(storage::QUERY_RESULT_FILENAME));
+        path
+    }
+    pub fn deserialize(path: PathBuf) -> Result<QueryResult, io::Error> {
+        Ok(serde_json::from_slice(&fs::read(path)?)?)
+    }
 }
 
 // Not used, but can be useful
 fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
-  for tweet in &search_result.statuses {
-    println!(
-      "(@{}) {}",
-      tweet.user.as_ref().unwrap().screen_name,
-      tweet.text
-    );
-  }
+    for tweet in &search_result.statuses {
+        println!(
+            "(@{}) {}",
+            tweet.user.as_ref().unwrap().screen_name,
+            tweet.text
+        );
+    }
 }
 
 pub mod auth {
-  pub fn get_token(token_path: &std::path::Path) -> Option<egg_mode::Token> {
-    let token_str = std::fs::read_to_string(token_path);
-    if token_str.is_err() {
-      eprintln!("Could not read {:?}", token_path);
-      return None;
+    pub fn get_token(token_path: &std::path::Path) -> Option<egg_mode::Token> {
+        let token_str = std::fs::read_to_string(token_path);
+        if token_str.is_err() {
+            eprintln!("Could not read {:?}", token_path);
+            return None;
+        }
+        Some(egg_mode::auth::Token::Bearer(token_str.unwrap()))
     }
-    Some(egg_mode::auth::Token::Bearer(token_str.unwrap()))
-  }
 }
 
 #[tokio::test]
 async fn test_authentication() {
-  let maybe_token = auth::get_token(std::path::Path::new("auth/bearer.token"));
-  assert!(maybe_token.is_some());
-  let token = maybe_token.unwrap();
-  let user = egg_mode::user::show("twitter", &token).await;
-  assert!(user.is_ok());
+    let maybe_token = auth::get_token(std::path::Path::new("auth/bearer.token"));
+    assert!(maybe_token.is_some());
+    let token = maybe_token.unwrap();
+    let user = egg_mode::user::show("twitter", &token).await;
+    assert!(user.is_ok());
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Config {
-  pub categories: Vec<String>,
-  pub accounts: Vec<TwitterAccount>,
+    pub categories: Vec<String>,
+    pub accounts: Vec<TwitterAccount>,
 }
 
 impl Config {
-  pub fn get(config_path: &std::path::Path) -> Option<Config> {
-    let json_str = std::fs::read_to_string(config_path);
-    if json_str.is_err() {
-      eprintln!("Could not read {:?}", config_path);
-      return None;
-    }
-    let maybe_json: serde_json::Result<Config> = serde_json::from_str(json_str.unwrap().as_str());
-    if maybe_json.is_err() {
-      eprintln!("serde_json parse error");
-      return None;
-    }
+    pub fn get(config_path: &std::path::Path) -> Option<Config> {
+        let json_str = std::fs::read_to_string(config_path);
+        if json_str.is_err() {
+            eprintln!("Could not read {:?}", config_path);
+            return None;
+        }
+        let maybe_json: serde_json::Result<Config> =
+            serde_json::from_str(json_str.unwrap().as_str());
+        if maybe_json.is_err() {
+            eprintln!("serde_json parse error");
+            return None;
+        }
 
-    Some(maybe_json.unwrap())
-  }
+        Some(maybe_json.unwrap())
+    }
 }
 
 #[tokio::test]
 async fn test_json_parse() {
-  let maybe_json = Config::get(&std::path::Path::new("conf/accounts.json"));
-  assert!(maybe_json.is_some());
-  let json = maybe_json.unwrap();
-  let test_category = "news".to_string();
-  assert!(json.categories.contains(&test_category))
+    let maybe_json = Config::get(&std::path::Path::new("conf/accounts.json"));
+    assert!(maybe_json.is_some());
+    let json = maybe_json.unwrap();
+    let test_category = "news".to_string();
+    assert!(json.categories.contains(&test_category))
 }
-
-#[cfg(test)]
-pub mod test {
-  use crate::twitter;
-  use crate::twitter::QueryResult;
-  use std::{fs, path::Path};
-  pub const TEST_ANALYSIS_STORAGE_LOCATION: &str = "test_analyses";
-  pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
-  pub const TEST_QUERY_LOCATION: &str = "test_resources/query-result.json";
-
-  impl QueryResult {
-    pub fn create_empty() -> QueryResult {
-      QueryResult {
-        query: "empty_query".to_string(),
-        date_utc: chrono::Utc::now(),
-        tweets: Vec::new(),
-      }
-    }
-  }
-
-  pub fn get_test_query_result() -> twitter::QueryResult {
-    // It's a query result so deserialize it!
-    let serialized =
-      std::fs::read(&Path::new(TEST_QUERY_LOCATION)).expect("Could not get test query result");
-    let deserialized_result: twitter::QueryResult =
-      serde_json::from_slice(&serialized).expect("Could deserialize test query result");
-    deserialized_result
-  }
-
-  /// Ensures that test area is usable
-  pub fn setup_test_dir(dir: &Path) {
-    if dir.exists() {
-      assert!(dir.is_dir());
-      println!("Cleaning storage area at {:?}", dir.canonicalize());
-      let res = std::fs::remove_dir_all(dir);
-      assert!(
-        res.is_ok(),
-        "Error while deleting directory: {:?}",
-        res.unwrap_err()
-      );
-    } else {
-      let res = fs::create_dir(dir);
-      assert!(
-        res.is_ok(),
-        "Error while creating new directory: {:?}",
-        res.unwrap_err()
-      );
-    }
-  }
-} // end test mod

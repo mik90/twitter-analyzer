@@ -27,6 +27,8 @@
 
 
 #### Todo
-1. Recurse down into queries correctly in storage::retrieve_queries (don't repeat the queries)
-2. Remove queries from most common words (1 is required first)
-3. Make query storage/retrieval more modular! Deleting the entire `test_queries` dir every test case is slow
+- Modularize storage so that a temp dir for tests isn't requried
+  - Only serialize to disk if required
+- Recurse down into query storage correctly in storage::retrieve_queries (don't repeat the queries)
+- Remove queries from most common words
+- Make the retrieval configurable once instead of having to set the dir every time

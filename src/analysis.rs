@@ -228,8 +228,9 @@ pub fn get_most_common_handle_patterns(
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::twitter::test::get_test_query_result;
+    use super::{get_most_common_handle_patterns, get_most_common_words, HandlePattern};
+    use crate::twitter::QueryResult;
+    use crate::util::test::get_test_query_result;
     use std::cmp::Ordering;
 
     #[tokio::test]
