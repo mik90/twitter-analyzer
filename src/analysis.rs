@@ -1,6 +1,9 @@
 extern crate chrono;
 extern crate regex;
-use crate::{storage, twitter::QueryResult};
+use crate::{
+    storage::{self, StorageHandler},
+    twitter::QueryResult,
+};
 use regex::RegexSet;
 use std::{
     collections::BTreeMap,
@@ -57,7 +60,9 @@ impl SearchAnalysis {
         base_dir: &Path,
         words_to_ignore: &[String],
     ) -> io::Result<SearchAnalysis> {
-        let query_results = storage::retrieve_all_queries(base_dir)?;
+        let query_results = StorageHandler::new()
+            .storage_dir(&base_dir)
+            .retrieve_all_queries()?;
         Ok(SearchAnalysis {
             queries: query_results.iter().map(|x| x.query.to_string()).collect(),
             date_utc: chrono::Utc::now(),
@@ -107,10 +112,11 @@ impl SearchAnalysis {
 
 pub async fn run_analysis(config: AnalysisConfig) -> io::Result<()> {
     let analysis = SearchAnalysis::from_stored_queries(
-        &Path::new(storage::DEFAULT_QUERY_RESULT_DIR),
+        &Path::new(storage::DEFAULT_STORAGE_DIR),
         &config.ignored_words,
     )?;
-    storage::store_analysis(&analysis)?;
+    let storage = StorageHandler::new();
+    storage.save_analysis(&analysis)?;
     println!("{}", analysis.summary());
     Ok(())
 }

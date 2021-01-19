@@ -2,60 +2,81 @@ use crate::{analysis::SearchAnalysis, twitter::QueryResult};
 use std::{fs, io, io::Write, path::Path, path::PathBuf};
 use walkdir::WalkDir;
 
-pub const DEFAULT_ANALYSIS_DIR: &str = "analyses";
-pub const DEFAULT_QUERY_RESULT_DIR: &str = "queries";
+pub const DEFAULT_STORAGE_DIR: &str = "data";
 
 pub struct StorageHandler {
     base_dir: PathBuf,
 }
 
 impl StorageHandler {
-  const QUERY_RESULT_FILENAME: &str = "query-result.json",
-  pub fn new(base_dir: PathBuf) -> StorageHandler {
-      StorageHandler {
-          base_dir,
-      }
-  }
+    const QUERY_RESULT_FILENAME: &'static str = "query-result.json";
 
-  /// Retrieve specific queries, (or any) from a given directory
-  pub fn retrieve_all_queries(&self) -> io::Result<Vec<QueryResult>> {
-      Ok(WalkDir::new(&self.base_dir)
-          .into_iter()
-          .filter_map(Result::ok)
-          // Grab entries that are query.json files
-          .filter(|e| e.file_name().eq(QUERY_RESULT_FILENAME))
-          .map(|f| QueryResult::deserialize(f.into_path()))
-          .filter_map(Result::ok)
-          .collect())
-  }
-
-  pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
-    let storage_path = item.storage_location(self.base_dir);
-    println!("Storing analysis as {:?}", &storage_path);
-    let parent_dir = storage_path.parent().unwrap();
-    if fs::metadata(&parent_dir).is_err() {
-        fs::create_dir_all(&parent_dir)
-            .expect("Could not create directory despite it not being there");
+    pub fn new() -> StorageHandler {
+        let base_dir = PathBuf::from(DEFAULT_STORAGE_DIR);
+        if !base_dir.exists() {
+            fs::create_dir(&base_dir)
+                .expect("Could not create directory despite it not being there");
+        }
+        StorageHandler {
+            base_dir: PathBuf::from(DEFAULT_STORAGE_DIR),
+        }
     }
-    let serialized_item = serde_json::to_string(item)?;
-    let mut file = fs::File::create(&storage_path)?;
-    file.write_all(serialized_item.as_bytes())?;
-    Ok(())
-  }
 
-  pub fn save_query(&self, query_result: &QueryResult) -> Result<(), std::io::Error> {
-    let storage_path = query_result.storage_location(&self.base_dir);
-    println!("Storing query result as {:?}", &storage_path);
-    let parent_dir = storage_path.parent().unwrap();
-    if fs::metadata(&parent_dir).is_err() {
-        fs::create_dir_all(&parent_dir)
-            .expect("Could not create directory despite it not being there");
+    pub fn storage_dir(mut self, dir: &Path) -> StorageHandler {
+        self.base_dir = PathBuf::from(dir);
+        if !self.base_dir.exists() {
+            fs::create_dir(&self.base_dir)
+                .expect("Could not create directory despite it not being there");
+        }
+        self
     }
-    let serialized_item = serde_json::to_string(query_result)?;
-    let mut file = fs::File::create(&storage_path)?;
-    file.write_all(serialized_item.as_bytes())?;
-    Ok(())
-  }
+
+    /// Retrieve specific queries, (or any) from a given directory
+    pub fn retrieve_all_queries(&self) -> io::Result<Vec<QueryResult>> {
+        Ok(WalkDir::new(&self.base_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            // Grab entries that are query.json files
+            .filter(|e| e.file_name().eq(Self::QUERY_RESULT_FILENAME))
+            .map(|f| QueryResult::deserialize(f.into_path()))
+            .filter_map(Result::ok)
+            .collect())
+    }
+
+    pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
+        let storage_path = item.storage_location(&self.base_dir);
+        println!("Storing analysis as {:?}", &storage_path);
+        let parent_dir = storage_path.parent().unwrap();
+        if fs::metadata(&parent_dir).is_err() {
+            fs::create_dir_all(&parent_dir)
+                .expect("Could not create directory despite it not being there");
+        }
+        let serialized_item = serde_json::to_string(item)?;
+        let mut file = fs::File::create(&storage_path)?;
+        file.write_all(serialized_item.as_bytes())?;
+        Ok(())
+    }
+
+    fn create_storage_path_for_query(&self, query_result: &QueryResult) -> PathBuf {
+        // ISO 8601 / RFC 3339 date & time format
+        let filename = PathBuf::from(format!(
+            "{}.{}",
+            &query_result.date_utc.format("%+").to_string(),
+            Self::QUERY_RESULT_FILENAME
+        ));
+        let storage_path: PathBuf = [&self.base_dir, &filename].iter().collect();
+        storage_path
+    }
+
+    pub fn save_query(&self, query_result: &QueryResult) -> Result<(), std::io::Error> {
+        let storage_path = self.create_storage_path_for_query(query_result);
+
+        println!("Storing query result as {:?}", &storage_path);
+        let serialized_item = serde_json::to_string(query_result)?;
+        let mut file = fs::File::create(&storage_path)?;
+        file.write_all(serialized_item.as_bytes())?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -66,36 +87,41 @@ mod test {
     use std::path::Path;
 
     fn get_test_storage_handler() -> StorageHandler {
-      StorageHandler::new(&test::TEST_TEMP_DIR)
+        let handler = StorageHandler::new().storage_dir(&Path::new(&test::TEST_TEMP_DIR));
+        handler
     }
 
     #[tokio::test]
     async fn test_analysis_storage() {
         let analysis = SearchAnalysis::create_empty();
         let storage_handler = get_test_storage_handler();
-        storage_handler.save_analysis(&analysis).expect("Could not store analysis!");
+        storage_handler
+            .save_analysis(&analysis)
+            .expect("Could not store analysis!");
     }
 
     #[tokio::test]
     async fn test_query_storage() {
         let query = QueryResult::create_empty();
-        let dir = Path::new(&test::TEST_TEMP_DIR);
-        save_query_to(&query, dir).expect("Could not store query!");
+        let storage_handler = get_test_storage_handler();
+        storage_handler
+            .save_query(&query)
+            .expect("Could not store query!");
     }
 
     #[tokio::test]
     // Store an empty query twice and ensure that two can be deserialized
     async fn test_query_retrieval() {
-        let storage_dir = Path::new(&test::TEST_QUERY_RESULT_STORAGE_LOCATION);
+        let storage_handler = get_test_storage_handler();
 
         let query = QueryResult::create_empty();
 
-        let res = save_query_to(&query, &storage_dir);
+        let res = storage_handler.save_query(&query);
         assert!(res.is_ok(), "Could not store query 1: {}", res.unwrap_err());
-        let res = save_query_to(&query, &storage_dir);
+        let res = storage_handler.save_query(&query);
         assert!(res.is_ok(), "Could not store query 2: {}", res.unwrap_err());
 
-        let queries = retrieve_all_queries(storage_dir);
+        let queries = storage_handler.retrieve_all_queries();
         assert!(queries.is_ok(), format!("Error: {:?}", queries.err()));
 
         // Esnure both queries are equal since they're the same

@@ -6,7 +6,6 @@ pub mod test {
     use crate::twitter::QueryResult;
     use std::{fs, path::Path, sync::Once};
     pub const TEST_TEMP_DIR: &str = "test_temp";
-    pub const TEST_QUERY_RESULT_STORAGE_LOCATION: &str = "test_queries";
 
     impl QueryResult {
         pub fn create_empty() -> QueryResult {

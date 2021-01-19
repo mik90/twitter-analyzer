@@ -7,7 +7,6 @@ extern crate clap;
 use analysis::{run_analysis, AnalysisConfig};
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
-use storage::DEFAULT_QUERY_RESULT_DIR;
 use twitter::*;
 
 #[tokio::main]
@@ -44,19 +43,7 @@ async fn main() {
         )
         .subcommand(
             SubCommand::with_name("clean")
-                .about("Clean analysis directory before searching")
-                .arg(
-                    Arg::with_name("queries")
-                        .short("q")
-                        .long("queries")
-                        .help("Delete all queries"),
-                )
-                .arg(
-                    Arg::with_name("analyses")
-                        .short("a")
-                        .long("analyses")
-                        .help("Delete all analyses"),
-                ),
+                .about("Clean query/analysis storage directory before searching"),
         )
         .get_matches();
 
@@ -87,24 +74,15 @@ async fn main() {
                 }
             }
         }
-        ("clean", Some(matches)) => {
-            let clean_queries = matches.value_of("queries").is_some();
-            let clean_analyses = matches.value_of("analyses").is_some();
-            // Clean both if both args are present, or if none are
-            let no_args_provided = !clean_queries && !clean_analyses;
-
-            if (clean_queries || no_args_provided)
-                && Path::new(&storage::DEFAULT_QUERY_RESULT_DIR).exists()
-            {
-                std::fs::remove_dir_all(&DEFAULT_QUERY_RESULT_DIR)
-                    .expect("Could not clean out query storage area!");
-            }
-
-            if (clean_analyses || no_args_provided)
-                && Path::new(&storage::DEFAULT_ANALYSIS_DIR).exists()
-            {
-                std::fs::remove_dir_all(&storage::DEFAULT_ANALYSIS_DIR)
+        ("clean", _) => {
+            if Path::new(&storage::DEFAULT_STORAGE_DIR).exists() {
+                std::fs::remove_dir_all(&storage::DEFAULT_STORAGE_DIR)
                     .expect("Could not clean out analysis storage area!");
+            } else {
+                eprintln!(
+                    "Could not clean {}, it doesn't exist!",
+                    &storage::DEFAULT_STORAGE_DIR
+                );
             }
         }
         ("query", Some(matches)) => {

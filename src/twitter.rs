@@ -1,8 +1,5 @@
-use crate::storage;
-use std::{
-    fs, io,
-    path::{Path, PathBuf},
-};
+use crate::storage::StorageHandler;
+use std::{fs, io, path::PathBuf};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Tweet {
@@ -41,7 +38,7 @@ pub async fn search_for(token: &egg_mode::Token, query: String) {
         .response;
 
     let query_result = QueryResult::new(query.as_str(), chrono::Utc::now(), &response);
-    if storage::store_query(&query_result).is_err() {
+    if StorageHandler::new().save_query(&query_result).is_err() {
         eprintln!("Could not store query!");
     }
 }
@@ -91,15 +88,6 @@ impl QueryResult {
         }
     }
 
-    /// Saves to $PWD/<base_dir>/<handle>/<search-date>/query-result.json
-    pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
-        // ISO 8601 / RFC 3339 date & time format
-        let mut path = PathBuf::from(base_dir);
-        path.push(&self.query);
-        path.push(&self.date_utc.format("%+").to_string());
-        path.push(Path::new(storage::QUERY_RESULT_FILENAME));
-        path
-    }
     pub fn deserialize(path: PathBuf) -> Result<QueryResult, io::Error> {
         Ok(serde_json::from_slice(&fs::read(path)?)?)
     }
