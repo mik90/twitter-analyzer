@@ -10,6 +10,7 @@ pub struct StorageHandler {
 
 impl StorageHandler {
     const QUERY_RESULT_FILENAME: &'static str = "query-result.json";
+    const ANALYSIS_RESULT_FILENAME: &'static str = "analysis-result.json";
 
     pub fn new() -> StorageHandler {
         let base_dir = PathBuf::from(DEFAULT_STORAGE_DIR);
@@ -22,6 +23,8 @@ impl StorageHandler {
         }
     }
 
+    /// Using a &mut return didn't really mesh well with my usage
+    /// Refernce: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html#consuming-builders
     pub fn storage_dir(mut self, dir: &Path) -> StorageHandler {
         self.base_dir = PathBuf::from(dir);
         if !self.base_dir.exists() {
@@ -43,8 +46,20 @@ impl StorageHandler {
             .collect())
     }
 
+    // TODO: Make this and the query counterpart into the same function, they do the same thing
+    fn create_storage_path_for_analysis(&self, analysis: &SearchAnalysis) -> PathBuf {
+        // ISO 8601 / RFC 3339 date & time format
+        let filename = PathBuf::from(format!(
+            "{}.{}",
+            &analysis.date_utc.format("%+").to_string(),
+            Self::ANALYSIS_RESULT_FILENAME
+        ));
+        let storage_path: PathBuf = [&self.base_dir, &filename].iter().collect();
+        storage_path
+    }
+
     pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
-        let storage_path = item.storage_location(&self.base_dir);
+        let storage_path = self.create_storage_path_for_analysis(item);
         println!("Storing analysis as {:?}", &storage_path);
         let parent_dir = storage_path.parent().unwrap();
         if fs::metadata(&parent_dir).is_err() {

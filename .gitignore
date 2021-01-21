@@ -13,3 +13,5 @@ Cargo.lock
 
 /analyses/
 /queries/
+
+/test_temp/

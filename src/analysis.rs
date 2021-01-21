@@ -81,15 +81,6 @@ impl SearchAnalysis {
         }
     }
 
-    /// Saves to $PWD/<base_dir>/<handle>/<search-date>/analysis.json
-    pub fn storage_location(&self, base_dir: &Path) -> PathBuf {
-        // ISO 8601 / RFC 3339 date & time format
-        let mut path = PathBuf::from(base_dir);
-        path.push(&self.date_utc.format("%+").to_string());
-        path.push("analysis.json");
-        path
-    }
-
     pub fn summary(&self) -> String {
         let mut summary = String::from("------------------------------------\n");
 
