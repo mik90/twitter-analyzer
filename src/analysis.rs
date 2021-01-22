@@ -5,12 +5,7 @@ use crate::{
     twitter::QueryResult,
 };
 use regex::RegexSet;
-use std::{
-    collections::BTreeMap,
-    io,
-    iter::FromIterator,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, io, iter::FromIterator, path::Path};
 
 /// Result of examining account
 #[derive(serde::Serialize, serde::Deserialize, Debug)]

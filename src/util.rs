@@ -1,9 +1,8 @@
 #[cfg(test)]
 pub mod test {
 
-    use super::*;
     use crate::twitter;
-    use crate::twitter::QueryResult;
+    use crate::twitter::{QueryResult, Tweet};
     use std::{fs, path::Path, sync::Once};
     pub const TEST_TEMP_DIR: &str = "test_temp";
 
@@ -18,12 +17,18 @@ pub mod test {
     }
 
     pub fn get_test_query_result() -> twitter::QueryResult {
-        // It's a query result so deserialize it!
-        let serialized = std::fs::read(&Path::new(test::TEST_TEMP_DIR))
-            .expect("Could not get test query result");
-        let deserialized_result: twitter::QueryResult =
-            serde_json::from_slice(&serialized).expect("Could deserialize test query result");
-        deserialized_result
+        QueryResult {
+            query: "@twitter".to_string(),
+            // Date doesn't actually matter for test content
+            date_utc: chrono::Utc::now(),
+            tweets: vec![Tweet {
+                text: "RT @Twitter:  comm…".to_string(),
+                handle: "hmairhhh_".to_string(),
+                date_utc: chrono::Utc::now(),
+                retweet_count: 47111,
+                favorite_count: 0,
+            }],
+        }
     }
 
     #[allow(dead_code)]
