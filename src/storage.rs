@@ -38,10 +38,18 @@ impl StorageHandler {
     pub fn retrieve_all_queries(&self) -> io::Result<Vec<QueryResult>> {
         Ok(WalkDir::new(&self.base_dir)
             .into_iter()
+            // Filter in results that are not errors
             .filter_map(Result::ok)
-            // Grab entries that are query.json files
-            .filter(|e| e.file_name().eq(Self::QUERY_RESULT_FILENAME))
-            .map(|f| QueryResult::deserialize(f.into_path()))
+            // Filter in entries that are .*query.json files
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(Self::QUERY_RESULT_FILENAME)
+            })
+            // Turn the entries into paths
+            .map(|entry| QueryResult::deserialize(entry.into_path()))
+            // Filter out errors
             .filter_map(Result::ok)
             .collect())
     }
@@ -102,8 +110,7 @@ mod test {
     use std::path::Path;
 
     fn get_test_storage_handler() -> StorageHandler {
-        let handler = StorageHandler::new().storage_dir(&Path::new(&test::TEST_TEMP_DIR));
-        handler
+        StorageHandler::new().storage_dir(&Path::new(&test::TEST_TEMP_DIR))
     }
 
     #[tokio::test]
@@ -129,19 +136,21 @@ mod test {
     async fn test_query_retrieval() {
         let storage_handler = get_test_storage_handler();
 
-        let query = QueryResult::create_empty();
-
-        let res = storage_handler.save_query(&query);
+        let res = storage_handler.save_query(&QueryResult::create_empty());
         assert!(res.is_ok(), "Could not store query 1: {}", res.unwrap_err());
-        let res = storage_handler.save_query(&query);
+
+        let res = storage_handler.save_query(&QueryResult::create_empty());
         assert!(res.is_ok(), "Could not store query 2: {}", res.unwrap_err());
 
         let queries = storage_handler.retrieve_all_queries();
         assert!(queries.is_ok(), format!("Error: {:?}", queries.err()));
 
-        // Esnure both queries are equal since they're the same
         let queries = queries.unwrap();
-        assert_eq!(queries.len(), 2, "Queries: {:?}", queries);
-        assert_eq!(queries[0].query, queries[1].query);
+        println!("Retrieved queries: {:?}", queries);
+        assert_eq!(
+            queries.is_empty(),
+            false,
+            "Expected some queries to be retrieved!"
+        );
     }
 }

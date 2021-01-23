@@ -233,9 +233,13 @@ mod test {
     }
 
     #[tokio::test]
+    // Note: for this test, ensure that the test query has enough repeated words to be usable!
     async fn test_most_common_words_order() {
         let queries: Vec<QueryResult> = vec![get_test_query_result()];
         let words = get_most_common_words(&queries, &Vec::new());
+        assert_eq!(words.is_empty(), false);
+
+        println!("Words: {:?}", words);
         // Check ordering of elements, the earlier items should be greater than the succeeding ones
         // Reference: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.partial_cmp
         assert_eq!(

@@ -4,6 +4,7 @@ pub mod test {
     use crate::twitter;
     use crate::twitter::{QueryResult, Tweet};
     use std::{fs, path::Path, sync::Once};
+    use walkdir::WalkDir;
     pub const TEST_TEMP_DIR: &str = "test_temp";
 
     impl QueryResult {
@@ -22,36 +23,43 @@ pub mod test {
             // Date doesn't actually matter for test content
             date_utc: chrono::Utc::now(),
             tweets: vec![Tweet {
-                text: "RT @Twitter:  comm…".to_string(),
-                handle: "hmairhhh_".to_string(),
+                text: r#"RT @Twitter: hello hello there are multiple words here, some repeated, hello hello…"#.to_string(),
+                handle: "fakeHandle".to_string(),
                 date_utc: chrono::Utc::now(),
                 retweet_count: 47111,
-                favorite_count: 0,
+                favorite_count: 1234,
             }],
         }
     }
 
     #[allow(dead_code)]
+    pub fn clear_temp_dir() {
+        // Get all the valid entries in the dir and delete them
+        let res: Result<(), std::io::Error> = WalkDir::new(&Path::new(&TEST_TEMP_DIR))
+            .min_depth(1)
+            .max_depth(1)
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|entry| std::fs::remove_dir_all(entry.into_path()))
+            .collect();
+
+        assert!(
+            res.is_ok(),
+            "Error while deleting directory entry: {:?}",
+            res.unwrap_err()
+        );
+    }
+
+    #[allow(dead_code)]
     static INIT: Once = Once::new();
 
-    // Setup logic for unit tests, runs once at start
     #[allow(dead_code)]
     async fn test_setup() {
         INIT.call_once(|| {
             // Make sure directory exists and is empty`
             let test_temp_dir = Path::new(&TEST_TEMP_DIR);
             if test_temp_dir.exists() {
-                assert!(test_temp_dir.is_dir());
-                println!(
-                    "Cleaning storage area at {:?}",
-                    test_temp_dir.canonicalize()
-                );
-                let res = std::fs::remove_dir_all(test_temp_dir);
-                assert!(
-                    res.is_ok(),
-                    "Error while deleting directory: {:?}",
-                    res.unwrap_err()
-                );
+                clear_temp_dir();
             } else {
                 let res = fs::create_dir(test_temp_dir);
                 assert!(
