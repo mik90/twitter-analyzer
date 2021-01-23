@@ -14,8 +14,8 @@ async fn main() {
     // TODO Add config for token path and config path
     let matches = App::new("twitter-analyzer")
         .version("0.1")
-        .author("Mike K. <kaliman.mike@gmail.com>")
-        .about("Searches for analysis in twitter mentions")
+        .author("Mike Kaliman <kaliman.mike@gmail.com>")
+        .about("Finds common words and handles in a twitter search")
         .subcommand(
             SubCommand::with_name("analyze")
                 .about("Search twitter using a query and print analysis")
@@ -75,14 +75,11 @@ async fn main() {
             }
         }
         ("clean", _) => {
-            if Path::new(&storage::DEFAULT_STORAGE_DIR).exists() {
-                std::fs::remove_dir_all(&storage::DEFAULT_STORAGE_DIR)
-                    .expect("Could not clean out analysis storage area!");
-            } else {
-                eprintln!(
-                    "Could not clean {}, it doesn't exist!",
-                    &storage::DEFAULT_STORAGE_DIR
-                );
+            let res: Result<(), std::io::Error> =
+                util::clear_directory(&Path::new(storage::DEFAULT_STORAGE_DIR));
+            if res.is_err() {
+                eprintln!("Error clearing out storage dir: {:?}", res.unwrap_err());
+                std::process::exit(1);
             }
         }
         ("query", Some(matches)) => {

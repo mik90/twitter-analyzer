@@ -1,10 +1,24 @@
+use std::path::Path;
+use walkdir::WalkDir;
+
+pub fn clear_directory(dir: &Path) -> Result<(), std::io::Error> {
+    // Get all the valid entries in the dir and delete them
+    WalkDir::new(&dir)
+        .min_depth(1)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(Result::ok)
+        .map(|entry| std::fs::remove_dir_all(entry.into_path()))
+        .collect()
+}
+
 #[cfg(test)]
 pub mod test {
 
+    use super::*;
     use crate::twitter;
     use crate::twitter::{QueryResult, Tweet};
     use std::{fs, path::Path, sync::Once};
-    use walkdir::WalkDir;
     pub const TEST_TEMP_DIR: &str = "test_temp";
 
     impl QueryResult {
@@ -35,13 +49,7 @@ pub mod test {
     #[allow(dead_code)]
     pub fn clear_temp_dir() {
         // Get all the valid entries in the dir and delete them
-        let res: Result<(), std::io::Error> = WalkDir::new(&Path::new(&TEST_TEMP_DIR))
-            .min_depth(1)
-            .max_depth(1)
-            .into_iter()
-            .filter_map(Result::ok)
-            .map(|entry| std::fs::remove_dir_all(entry.into_path()))
-            .collect();
+        let res = clear_directory(&Path::new(TEST_TEMP_DIR));
 
         assert!(
             res.is_ok(),
