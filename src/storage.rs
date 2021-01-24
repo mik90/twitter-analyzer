@@ -8,6 +8,11 @@ pub struct StorageHandler {
     base_dir: PathBuf,
 }
 
+enum StorageItem {
+    Query(QueryResult),
+    Analysis(SearchAnalysis),
+}
+
 impl StorageHandler {
     const QUERY_RESULT_FILENAME: &'static str = "query-result.json";
     const ANALYSIS_RESULT_FILENAME: &'static str = "analysis-result.json";
@@ -54,20 +59,8 @@ impl StorageHandler {
             .collect())
     }
 
-    // TODO: Make this and the query counterpart into the same function, they do the same thing
-    fn create_storage_path_for_analysis(&self, analysis: &SearchAnalysis) -> PathBuf {
-        // ISO 8601 / RFC 3339 date & time format
-        let filename = PathBuf::from(format!(
-            "{}.{}",
-            &analysis.date_utc.format("%+").to_string(),
-            Self::ANALYSIS_RESULT_FILENAME
-        ));
-        let storage_path: PathBuf = [&self.base_dir, &filename].iter().collect();
-        storage_path
-    }
-
     pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
-        let storage_path = self.create_storage_path_for_analysis(item);
+        let storage_path = self.create_storage_path(item);
         println!("Storing analysis as {:?}", &storage_path);
         let parent_dir = storage_path.parent().unwrap();
         if fs::metadata(&parent_dir).is_err() {
@@ -80,19 +73,34 @@ impl StorageHandler {
         Ok(())
     }
 
-    fn create_storage_path_for_query(&self, query_result: &QueryResult) -> PathBuf {
-        // ISO 8601 / RFC 3339 date & time format
-        let filename = PathBuf::from(format!(
-            "{}.{}",
-            &query_result.date_utc.format("%+").to_string(),
-            Self::QUERY_RESULT_FILENAME
-        ));
-        let storage_path: PathBuf = [&self.base_dir, &filename].iter().collect();
+    /// Uses ISO 8601 / RFC 3339 date & time format
+    fn create_storage_path(&self, item: StorageItem) -> PathBuf {
+        // Adjust filename based on type
+        let (query_dir, filename) = match item {
+            StorageItem::Analysis(item) => (
+                // Foldername will be `query1.query2.query3` etc
+                PathBuf::from(&item.queries.join(".")),
+                PathBuf::from(format!(
+                    "{}.{}",
+                    &item.date_utc.format("%+").to_string(),
+                    Self::ANALYSIS_RESULT_FILENAME
+                )),
+            ),
+            StorageItem::Query(item) => (
+                PathBuf::from(&item.query),
+                PathBuf::from(format!(
+                    "{}.{}",
+                    &item.date_utc.format("%+").to_string(),
+                    Self::QUERY_RESULT_FILENAME
+                )),
+            ),
+        };
+        let storage_path: PathBuf = [&self.base_dir, &query_dir, &filename].iter().collect();
         storage_path
     }
 
     pub fn save_query(&self, query_result: &QueryResult) -> Result<(), std::io::Error> {
-        let storage_path = self.create_storage_path_for_query(query_result);
+        let storage_path = self.create_storage_path(StorageItem::Query(query_result));
 
         println!("Storing query result as {:?}", &storage_path);
         let serialized_item = serde_json::to_string(query_result)?;

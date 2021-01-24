@@ -16,7 +16,7 @@ pub fn clear_directory(dir: &Path) -> Result<(), std::io::Error> {
 pub mod test {
 
     use super::*;
-    use crate::twitter;
+    use crate::analysis::SearchAnalysis;
     use crate::twitter::{QueryResult, Tweet};
     use std::{fs, path::Path, sync::Once};
     pub const TEST_TEMP_DIR: &str = "test_temp";
@@ -31,7 +31,18 @@ pub mod test {
         }
     }
 
-    pub fn get_test_query_result() -> twitter::QueryResult {
+    impl SearchAnalysis {
+        pub fn create_empty() -> SearchAnalysis {
+            SearchAnalysis {
+                queries: Vec::new(),
+                date_utc: chrono::Utc::now(),
+                word_frequency: Vec::new(),
+                handle_patterns: Vec::new(),
+            }
+        }
+    }
+
+    pub fn get_test_query_result() -> QueryResult {
         QueryResult {
             query: "@twitter".to_string(),
             // Date doesn't actually matter for test content

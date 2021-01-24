@@ -25,7 +25,7 @@ pub struct AnalysisConfig {
 }
 
 impl AnalysisConfig {
-    pub fn get(config_path: &std::path::Path) -> Option<AnalysisConfig> {
+    pub fn new(config_path: &std::path::Path) -> Option<AnalysisConfig> {
         // TODO Map the io::Result or serde_json::Result to the same type
         let file_string = std::fs::read_to_string(config_path);
         if file_string.is_err() {
@@ -66,16 +66,6 @@ impl SearchAnalysis {
         })
     }
 
-    #[cfg(test)]
-    pub fn create_empty() -> SearchAnalysis {
-        SearchAnalysis {
-            queries: Vec::new(),
-            date_utc: chrono::Utc::now(),
-            word_frequency: Vec::new(),
-            handle_patterns: Vec::new(),
-        }
-    }
-
     pub fn summary(&self) -> String {
         let mut summary = String::from("------------------------------------\n");
 
@@ -96,7 +86,7 @@ impl SearchAnalysis {
     }
 }
 
-pub async fn run_analysis(config: AnalysisConfig) -> io::Result<()> {
+pub async fn run_analysis_with_config(config: AnalysisConfig) -> io::Result<()> {
     let analysis = SearchAnalysis::from_stored_queries(
         &Path::new(storage::DEFAULT_STORAGE_DIR),
         &config.ignored_words,

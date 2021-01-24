@@ -4,14 +4,14 @@ mod twitter;
 mod util;
 
 extern crate clap;
-use analysis::{run_analysis, AnalysisConfig};
+use analysis::{run_analysis_with_config, AnalysisConfig};
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
+use std::process::exit;
 use twitter::*;
 
 #[tokio::main]
 async fn main() {
-    // TODO Add config for token path and config path
     let matches = App::new("twitter-analyzer")
         .version("0.1")
         .author("Mike Kaliman <kaliman.mike@gmail.com>")
@@ -49,23 +49,20 @@ async fn main() {
 
     match matches.subcommand() {
         ("analyze", Some(matches)) => {
-            let maybe_command = matches.value_of("analyze_command");
-            if maybe_command.is_some() {
+            let query_to_analyze = matches.value_of("analyze_command");
+            if query_to_analyze.is_some() {
                 eprintln!("Specific commands not implemented yet!");
-                std::process::exit(1);
+                exit(1);
             } else {
-                // TODO Possibly allow config from command line? Or remove the configuration of the other one
-                let config = AnalysisConfig::get(&std::path::Path::new("conf/analysis.json"));
-                if config.is_none() {
-                    std::process::exit(1);
-                }
+                let config =
+                    AnalysisConfig::new(&std::path::Path::new("conf/analysis.json")).unwrap();
                 let start = std::time::Instant::now();
                 // Run analysis on available queries
                 println!("Running analysis on all available queries...");
-                let result = run_analysis(config.unwrap()).await;
+                let result = run_analysis_with_config(config).await;
                 if result.is_err() {
                     eprintln!("Could not run analysis: {}", result.unwrap_err());
-                    std::process::exit(1);
+                    exit(1);
                 } else {
                     println!(
                         "Time to analyze accounts from configuration: {} milliseconds",
@@ -79,7 +76,7 @@ async fn main() {
                 util::clear_directory(&Path::new(storage::DEFAULT_STORAGE_DIR));
             if res.is_err() {
                 eprintln!("Error clearing out storage dir: {:?}", res.unwrap_err());
-                std::process::exit(1);
+                exit(1);
             }
         }
         ("query", Some(matches)) => {
@@ -89,7 +86,7 @@ async fn main() {
             let maybe_token = auth::get_token(&std::path::Path::new(token_path));
             if maybe_token.is_none() {
                 eprintln!("Could not get the bearer token!");
-                std::process::exit(1);
+                exit(1);
             }
 
             let maybe_search_query = matches.value_of("search_query");
