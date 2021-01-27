@@ -8,7 +8,7 @@ use regex::RegexSet;
 use std::{collections::BTreeMap, io, iter::FromIterator, path::Path};
 
 /// Result of examining account
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct SearchAnalysis {
     pub queries: Vec<String>,
     pub date_utc: chrono::DateTime<chrono::Utc>,
@@ -17,7 +17,7 @@ pub struct SearchAnalysis {
 }
 
 /// Analysis configuration
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct AnalysisConfig {
     pub version: u32,
     pub description: String,

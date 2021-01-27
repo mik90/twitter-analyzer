@@ -7,7 +7,7 @@ pub const DEFAULT_STORAGE_DIR: &str = "data";
 pub struct StorageHandler {
     base_dir: PathBuf,
 }
-
+#[derive(Clone)]
 enum StorageItem {
     Query(QueryResult),
     Analysis(SearchAnalysis),
@@ -60,21 +60,22 @@ impl StorageHandler {
     }
 
     pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
-        let storage_path = self.create_storage_path(item);
+        let storage_path = self.create_storage_path(&StorageItem::Analysis(item.clone()));
         println!("Storing analysis as {:?}", &storage_path);
         let parent_dir = storage_path.parent().unwrap();
         if fs::metadata(&parent_dir).is_err() {
             fs::create_dir_all(&parent_dir)
                 .expect("Could not create directory despite it not being there");
         }
-        let serialized_item = serde_json::to_string(item)?;
+
+        let serialized_item = serde_json::to_string(&item)?;
         let mut file = fs::File::create(&storage_path)?;
         file.write_all(serialized_item.as_bytes())?;
         Ok(())
     }
 
     /// Uses ISO 8601 / RFC 3339 date & time format
-    fn create_storage_path(&self, item: StorageItem) -> PathBuf {
+    fn create_storage_path(&self, item: &StorageItem) -> PathBuf {
         // Adjust filename based on type
         let (query_dir, filename) = match item {
             StorageItem::Analysis(item) => (
@@ -95,15 +96,25 @@ impl StorageHandler {
                 )),
             ),
         };
+        /* This won't work in unit tests since they're parallel
+        if !query_dir.exists() {
+            fs::create_dir(&query_dir).expect(&format!(
+                "Could not create directory ./{}/{} despite it not being there",
+                &self.base_dir.to_string_lossy(),
+                &query_dir.to_string_lossy()
+            ));
+        }
+        */
         let storage_path: PathBuf = [&self.base_dir, &query_dir, &filename].iter().collect();
         storage_path
     }
 
-    pub fn save_query(&self, query_result: &QueryResult) -> Result<(), std::io::Error> {
-        let storage_path = self.create_storage_path(StorageItem::Query(query_result));
+    pub fn save_query(&self, item: &QueryResult) -> Result<(), std::io::Error> {
+        let storage_path = self.create_storage_path(&StorageItem::Query(item.clone()));
 
         println!("Storing query result as {:?}", &storage_path);
-        let serialized_item = serde_json::to_string(query_result)?;
+
+        let serialized_item = serde_json::to_string(&item)?;
         let mut file = fs::File::create(&storage_path)?;
         file.write_all(serialized_item.as_bytes())?;
         Ok(())

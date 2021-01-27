@@ -22,13 +22,14 @@
 
 #### Storage
 - Stores queries and analyses in json with serde_json
-- Analyses are stored as `analyses/<handle>/<search_date>/analysis.json`
-- Queries are stored as `queries/<handle>/<search_date>/query-result.json`
+- Storage base directory defaults to `data/$QUERY`
+  - Analyses are stored as `$SEARCH_DATE.analysis.json`
+  - Queries are stored as `$SEARCH_DATE.query-result.json`
 
 
 #### Todo
 - Modularize storage so that a temp dir for tests isn't requried
   - Only serialize to disk if required
-- Recurse down into query storage correctly in storage::retrieve_queries (don't repeat the queries)
 - Remove queries from most common words
 - Make the retrieval configurable once instead of having to set the dir every time
+- Make an analyzer or query struct? It could have a storage handler
