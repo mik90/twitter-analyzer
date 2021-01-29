@@ -28,8 +28,6 @@
 
 
 #### Todo
-- Modularize storage so that a temp dir for tests isn't requried
-  - Only serialize to disk if required
 - Remove queries from most common words
 - Make the retrieval configurable once instead of having to set the dir every time
 - Make an analyzer or query struct? It could have a storage handler

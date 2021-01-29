@@ -4,7 +4,7 @@ mod twitter;
 mod util;
 
 extern crate clap;
-use analysis::{run_analysis_with_config, AnalysisConfig};
+use analysis::{run_analysis_on_query, run_analysis_with_config, AnalysisConfig};
 use clap::{App, Arg, SubCommand};
 use std::path::Path;
 use std::process::exit;
@@ -50,33 +50,36 @@ async fn main() {
     match matches.subcommand() {
         ("analyze", Some(matches)) => {
             let query_to_analyze = matches.value_of("analyze_command");
+            let storage_dir = Path::new(storage::DEFAULT_STORAGE_DIR);
+            let config = AnalysisConfig::new(&std::path::Path::new("conf/analysis.json")).unwrap();
+            let start = std::time::Instant::now();
             if query_to_analyze.is_some() {
-                eprintln!("Specific commands not implemented yet!");
-                exit(1);
-            } else {
-                let config =
-                    AnalysisConfig::new(&std::path::Path::new("conf/analysis.json")).unwrap();
-                let start = std::time::Instant::now();
-                // Run analysis on available queries
-                println!("Running analysis on all available queries...");
-                let result = run_analysis_with_config(config).await;
+                let query_to_analyze = query_to_analyze.unwrap();
+                println!("Running analysis on queries for {}...", query_to_analyze);
+                let result = run_analysis_on_query(config, storage_dir, query_to_analyze).await;
                 if result.is_err() {
                     eprintln!("Could not run analysis: {}", result.unwrap_err());
                     exit(1);
-                } else {
-                    println!(
-                        "Time to analyze accounts from configuration: {} milliseconds",
-                        (std::time::Instant::now() - start).as_millis()
-                    )
+                }
+            } else {
+                println!("Running analysis on all available queries...");
+                let result = run_analysis_with_config(config, storage_dir).await;
+                if result.is_err() {
+                    eprintln!("Could not run analysis: {}", result.unwrap_err());
+                    exit(1);
                 }
             }
+            println!(
+                "Time to analyze accounts from configuration: {} milliseconds",
+                (std::time::Instant::now() - start).as_millis()
+            )
         }
         ("clean", _) => {
             let res: Result<(), std::io::Error> =
                 util::clear_directory(&Path::new(storage::DEFAULT_STORAGE_DIR));
             if res.is_err() {
                 eprintln!("Error clearing out storage dir: {:?}", res.unwrap_err());
-                exit(1);
+                exit(1)
             }
         }
         ("query", Some(matches)) => {
@@ -86,7 +89,7 @@ async fn main() {
             let maybe_token = auth::get_token(&std::path::Path::new(token_path));
             if maybe_token.is_none() {
                 eprintln!("Could not get the bearer token!");
-                exit(1);
+                exit(1)
             }
 
             let maybe_search_query = matches.value_of("search_query");

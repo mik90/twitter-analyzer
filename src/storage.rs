@@ -31,8 +31,30 @@ impl StorageHandler {
         self
     }
 
-    /// Retrieve specific queries, (or any) from a given directory
-    pub fn retrieve_all_queries(&self) -> io::Result<Vec<QueryResult>> {
+    /// Retrieve any results from a given query. There may be multiple results from different times.
+    pub fn retrieve_query_results_for(&self, query: &str) -> io::Result<Vec<QueryResult>> {
+        Ok(WalkDir::new(&self.base_dir)
+            .into_iter()
+            // Filter in results that are not errors
+            .filter_map(Result::ok)
+            // Filter in entries that contains the query
+            .filter(|entry| entry.file_name().to_string_lossy().contains(query))
+            // Filter in entries that are .*query.json files
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(Self::QUERY_RESULT_FILENAME)
+            })
+            // Turn the entries into paths
+            .map(|entry| QueryResult::deserialize(entry.into_path()))
+            // Filter out errors
+            .filter_map(Result::ok)
+            .collect())
+    }
+
+    /// Retrieve all queries, (or any) from a given directory
+    pub fn retrieve_all_query_results(&self) -> io::Result<Vec<QueryResult>> {
         Ok(WalkDir::new(&self.base_dir)
             .into_iter()
             // Filter in results that are not errors
@@ -97,14 +119,7 @@ impl StorageHandler {
         let storage_path = self.create_storage_path(&StorageItem::Query(item.clone()));
         println!("Storing query result as {:?}", &storage_path);
         let serialized_item = serde_json::to_string(&item)?;
-        println!("Serialized item {:?}", serialized_item);
-        println!(
-            "Storage path {:?}, exists:{:?}",
-            storage_path,
-            storage_path.exists()
-        );
         let mut file = fs::File::create(&storage_path)?;
-        println!("File created {:?}", file);
         file.write_all(serialized_item.as_bytes())?;
         Ok(())
     }
@@ -152,7 +167,7 @@ mod test {
         let res = storage_handler.save_query(&QueryResult::create_empty());
         assert!(res.is_ok(), "Could not store query 2: {}", res.unwrap_err());
 
-        let queries = storage_handler.retrieve_all_queries();
+        let queries = storage_handler.retrieve_all_query_results();
         assert!(queries.is_ok(), format!("Error: {:?}", queries.err()));
 
         let queries = queries.unwrap();

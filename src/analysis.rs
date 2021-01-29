@@ -1,9 +1,6 @@
 extern crate chrono;
 extern crate regex;
-use crate::{
-    storage::{self, StorageHandler},
-    twitter::QueryResult,
-};
+use crate::{storage::StorageHandler, twitter::QueryResult};
 use regex::RegexSet;
 use std::{collections::BTreeMap, io, iter::FromIterator, path::Path};
 
@@ -51,13 +48,29 @@ const N_MOST_COMMON_WORDS: usize = 5;
 const N_MOST_HANDLE_PATTERNS: usize = 3;
 
 impl SearchAnalysis {
+    pub fn from_stored_query(
+        base_dir: &Path,
+        words_to_ignore: &[String],
+        query: &str,
+    ) -> io::Result<SearchAnalysis> {
+        let query_results = StorageHandler::new()
+            .storage_dir(&base_dir)
+            .retrieve_query_results_for(query)?;
+        Ok(SearchAnalysis {
+            queries: query_results.iter().map(|x| x.query.to_string()).collect(),
+            date_utc: chrono::Utc::now(),
+            word_frequency: get_most_common_words(&query_results, &words_to_ignore),
+            handle_patterns: get_most_common_handle_patterns(&query_results),
+        })
+    }
+
     pub fn from_stored_queries(
         base_dir: &Path,
         words_to_ignore: &[String],
     ) -> io::Result<SearchAnalysis> {
         let query_results = StorageHandler::new()
             .storage_dir(&base_dir)
-            .retrieve_all_queries()?;
+            .retrieve_all_query_results()?;
         Ok(SearchAnalysis {
             queries: query_results.iter().map(|x| x.query.to_string()).collect(),
             date_utc: chrono::Utc::now(),
@@ -86,17 +99,30 @@ impl SearchAnalysis {
     }
 }
 
-pub async fn run_analysis_with_config(config: AnalysisConfig) -> io::Result<()> {
-    let analysis = SearchAnalysis::from_stored_queries(
-        &Path::new(storage::DEFAULT_STORAGE_DIR),
-        &config.ignored_words,
-    )?;
-    let storage = StorageHandler::new();
+pub async fn run_analysis_with_config(
+    config: AnalysisConfig,
+    storage_dir: &Path,
+) -> io::Result<()> {
+    let analysis =
+        SearchAnalysis::from_stored_queries(&Path::new(storage_dir), &config.ignored_words)?;
+    let storage = StorageHandler::new().storage_dir(storage_dir);
     storage.save_analysis(&analysis)?;
     println!("{}", analysis.summary());
     Ok(())
 }
 
+pub async fn run_analysis_on_query(
+    config: AnalysisConfig,
+    storage_dir: &Path,
+    query_to_analyze: &str,
+) -> io::Result<()> {
+    let analysis =
+        SearchAnalysis::from_stored_query(storage_dir, &config.ignored_words, query_to_analyze)?;
+    let storage = StorageHandler::new().storage_dir(storage_dir);
+    storage.save_analysis(&analysis)?;
+    println!("{}", analysis.summary());
+    Ok(())
+}
 /**
  *  A category of handle format with their corresponding regex
  *

@@ -5,7 +5,6 @@ pub fn clear_directory(dir: &Path) -> Result<(), std::io::Error> {
     // Get all the valid entries in the dir and delete them
     WalkDir::new(&dir)
         .min_depth(1)
-        .max_depth(1)
         .into_iter()
         .filter_map(Result::ok)
         .map(|entry| std::fs::remove_dir_all(entry.into_path()))
