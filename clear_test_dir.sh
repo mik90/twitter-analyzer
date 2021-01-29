@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eou pipefail
-rm test_temp/*
+rm -rv test_temp/*
