@@ -89,11 +89,12 @@ async fn main() {
             let token_path = matches
                 .value_of("bearer_token")
                 .unwrap_or("auth/bearer.token");
-            let maybe_token = auth::get_token(&std::path::Path::new(token_path));
-            if maybe_token.is_none() {
+            let token = auth::get_token(&std::path::Path::new(token_path));
+            if token.is_none() {
                 eprintln!("Could not get the bearer token!");
                 exit(1)
             }
+            let token = token.unwrap();
 
             let maybe_search_query = matches.value_of("search_query");
             if maybe_search_query.is_some() {
@@ -102,7 +103,7 @@ async fn main() {
                 println!("Searching for {:?}", &search_query);
 
                 let start = std::time::Instant::now();
-                search_for(&maybe_token.unwrap(), search_query.to_owned()).await;
+                search_for(&token, search_query.to_owned()).await;
                 println!(
                     "Time to analyze {}: {} milliseconds",
                     search_query,
@@ -115,7 +116,7 @@ async fn main() {
                     std::process::exit(1);
                 }
                 let start = std::time::Instant::now();
-                run_query_from_config(maybe_token.unwrap(), config.unwrap()).await;
+                run_query_from_config(&token, config.unwrap()).await;
                 println!(
                     "Time to analyze accounts from configuration: {} milliseconds",
                     (std::time::Instant::now() - start).as_millis()

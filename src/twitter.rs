@@ -44,7 +44,7 @@ pub async fn search_for(token: &egg_mode::Token, query: String) {
 }
 
 /// Analyze multiple accounts as deserialized from configuration
-pub async fn run_query_from_config(token: egg_mode::Token, config: crate::twitter::Config) {
+pub async fn run_query_from_config(token: &egg_mode::Token, config: crate::twitter::Config) {
     // Map accounts to analyzation calls
     let futures: Vec<_> = config
         .accounts
@@ -105,13 +105,15 @@ fn _print_tweets(search_result: &egg_mode::search::SearchResult) {
 }
 
 pub mod auth {
+    /// Reads token string from `token_path` and trims whitespace
     pub fn get_token(token_path: &std::path::Path) -> Option<egg_mode::Token> {
         let token_str = std::fs::read_to_string(token_path);
         if token_str.is_err() {
             eprintln!("Could not read {:?}", token_path);
             return None;
         }
-        Some(egg_mode::auth::Token::Bearer(token_str.unwrap()))
+        let token_str = token_str.unwrap().trim().to_string();
+        Some(egg_mode::auth::Token::Bearer(token_str))
     }
 }
 
