@@ -136,7 +136,7 @@ impl StorageHandler {
 mod test {
 
     use super::StorageHandler;
-    use crate::{analysis::SearchAnalysis, twitter::QueryResult, util::test};
+    use crate::util::test;
     use std::path::PathBuf;
 
     // Create unique storage base dir formatted as "TEST_TEMP_DIR.test_name/"
@@ -147,7 +147,7 @@ mod test {
 
     #[tokio::test]
     async fn test_analysis_storage() {
-        let analysis = SearchAnalysis::create_empty();
+        let analysis = test::get_dummy_search_analysis();
         let storage_handler = get_test_storage_handler("test_analysis_storage");
         storage_handler
             .save_analysis(&analysis)
@@ -156,7 +156,7 @@ mod test {
 
     #[tokio::test]
     async fn test_query_storage() {
-        let query = QueryResult::create_empty();
+        let query = test::get_dummy_query_result();
         let storage_handler = get_test_storage_handler("test_query_storage");
         storage_handler
             .save_query(&query)
@@ -168,10 +168,10 @@ mod test {
     async fn test_query_retrieval() {
         let storage_handler = get_test_storage_handler("test_query_retrieval");
 
-        let res = storage_handler.save_query(&QueryResult::create_empty());
+        let res = storage_handler.save_query(&test::get_dummy_query_result());
         assert!(res.is_ok(), "Could not store query 1: {}", res.unwrap_err());
 
-        let res = storage_handler.save_query(&QueryResult::create_empty());
+        let res = storage_handler.save_query(&test::get_dummy_query_result());
         assert!(res.is_ok(), "Could not store query 2: {}", res.unwrap_err());
 
         let queries = storage_handler.retrieve_all_query_results();

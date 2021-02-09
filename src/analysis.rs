@@ -243,12 +243,12 @@ pub fn get_most_common_handle_patterns(
 mod test {
     use super::{get_most_common_handle_patterns, get_most_common_words, HandlePattern};
     use crate::twitter::QueryResult;
-    use crate::util::test::get_test_query_result;
+    use crate::util::test::get_dummy_query_result;
     use std::cmp::Ordering;
 
     #[tokio::test]
     async fn test_most_common_words() {
-        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_dummy_query_result()];
         let words = get_most_common_words(&queries, &Vec::new());
         assert!(!words.is_empty());
     }
@@ -256,7 +256,7 @@ mod test {
     #[tokio::test]
     // Note: for this test, ensure that the test query has enough repeated words to be usable!
     async fn test_most_common_words_order() {
-        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_dummy_query_result()];
         let words = get_most_common_words(&queries, &Vec::new());
         assert_eq!(words.is_empty(), false);
 
@@ -271,14 +271,14 @@ mod test {
 
     #[tokio::test]
     async fn test_handle_patterns() {
-        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_dummy_query_result()];
         let patterns = get_most_common_handle_patterns(&queries);
         assert!(!patterns.is_empty());
     }
 
     #[tokio::test]
     async fn test_handle_patterns_order() {
-        let queries: Vec<QueryResult> = vec![get_test_query_result()];
+        let queries: Vec<QueryResult> = vec![get_dummy_query_result()];
         let patterns = get_most_common_handle_patterns(&queries);
         assert_eq!(
             patterns[0..].iter().partial_cmp(&patterns[1..]),
