@@ -37,8 +37,8 @@ impl StorageHandler {
             .into_iter()
             // Filter in results that are not errors
             .filter_map(Result::ok)
-            // Filter in entries that contains the query
-            .filter(|entry| entry.file_name().to_string_lossy().contains(query))
+            // Filter in paths that contains the query. Hacky but meh
+            .filter(|entry| entry.path().to_string_lossy().contains(query))
             // Filter in entries that are .*query.json files
             .filter(|entry| {
                 entry
@@ -74,6 +74,13 @@ impl StorageHandler {
     }
 
     pub fn save_analysis(&self, item: &SearchAnalysis) -> Result<(), std::io::Error> {
+        if !item.has_queries() {
+            use std::io::{Error, ErrorKind};
+            return Err(Error::new(
+                ErrorKind::Other,
+                "Could not find any queries to analyze",
+            ));
+        }
         let storage_path = self.create_storage_path(&StorageItem::Analysis(item.clone()));
         println!("Storing analysis as {:?}", &storage_path);
         let serialized_item = serde_json::to_string(&item)?;

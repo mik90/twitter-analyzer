@@ -55,7 +55,10 @@ async fn main() {
             let start = std::time::Instant::now();
             if query_to_analyze.is_some() {
                 let query_to_analyze = query_to_analyze.unwrap();
-                println!("Running analysis on queries for {}...", query_to_analyze);
+                println!(
+                    "Running analysis on queries for \"{}\"...",
+                    query_to_analyze
+                );
                 let result = run_analysis_on_query(config, storage_dir, query_to_analyze).await;
                 if result.is_err() {
                     eprintln!("Could not run analysis: {}", result.unwrap_err());

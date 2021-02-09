@@ -79,6 +79,11 @@ impl SearchAnalysis {
         })
     }
 
+    /// Has some amount of queries and, if any, they are not the empty string
+    pub fn has_queries(&self) -> bool {
+        !self.queries.first().unwrap_or(&"".to_string()).is_empty()
+    }
+
     pub fn summary(&self) -> String {
         let mut summary = String::from("------------------------------------\n");
 
