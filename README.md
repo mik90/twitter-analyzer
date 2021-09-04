@@ -3,7 +3,7 @@
 
 ## What it does
 - Runs searches for the mentioned username(s) and then figures out
-  - Most common words  
+  - Most common words when people mention that given username
   - Most twitter handle pattern (e.g. CamelCase or namewithnumbers1234)
 
 ## Usage
